@@ -90,9 +90,9 @@ arxiv_generator_dag = DAG(
 )
 
 
-def remove_withdrawn_articles(dataframe):
+def remove_withdrawn_articles(dataframe: pd.DataFrame) -> pd.DataFrame:
     p = re.compile('\s+(This|The) (paper|submission|manuscript) (has been|is being|is) withdrawn')
-    not_withdrawn = p['abstract'].apply(p.match).isnull()
+    not_withdrawn = dataframe['abstract'].apply(p.match).isnull()
     return dataframe.loc[not_withdrawn]
 
 

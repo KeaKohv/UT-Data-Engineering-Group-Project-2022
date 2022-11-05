@@ -14,7 +14,7 @@ query = dict(
 cr = Crossref()
 response = cr.works( limit=1, **query)
 
-fields = ['DOI', 'type', 'publisher', 'is-referenced-by-count', 'title', 'container-title', 'subject', 'published']
+fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published']
 from operator import itemgetter
 def extract(item, fields):
     return dict(zip(fields, itemgetter(*fields)(item)))

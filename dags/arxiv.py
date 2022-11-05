@@ -1,4 +1,5 @@
-import requests 
+import requests
+import re
 import os
 from datetime import datetime, timedelta
 import json
@@ -87,6 +88,13 @@ arxiv_generator_dag = DAG(
     template_searchpath=DATA_FOLDER,
     default_args=DEFAULT_ARGS
 )
+
+
+def remove_withdrawn_articles(dataframe):
+    p = re.compile('\s+(This|The) (paper|submission|manuscript) (has been|is being|is) withdrawn')
+    not_withdrawn = p['abstract'].apply(p.match).isnull()
+    return dataframe.loc[not_withdrawn]
+
 
 def transform(dataframe):
     

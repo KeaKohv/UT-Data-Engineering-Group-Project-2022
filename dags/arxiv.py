@@ -1,4 +1,5 @@
-import requests 
+import requests
+import re
 import os
 from datetime import datetime, timedelta
 import json
@@ -87,6 +88,28 @@ arxiv_generator_dag = DAG(
     template_searchpath=DATA_FOLDER,
     default_args=DEFAULT_ARGS
 )
+
+def normalise(a: str)-> str:
+    """
+    Normalise string a by removing non-alphanumeric characters,
+    converting the string to lowercase.
+
+    :param a:
+    :return: normalised string
+    """
+    return ''.join(filter(str.isalnum, a.lower()))
+
+
+def remove_withdrawn_articles(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """
+    Drop withdrawn articles from dataframe.
+    :param dataframe:
+    :return:
+    """
+    p = re.compile('\s+(This|The) (paper|submission|manuscript) (has been|is being|is) withdrawn')
+    not_withdrawn = dataframe['abstract'].apply(p.match).isnull()
+    return dataframe.loc[not_withdrawn]
+
 
 def transform(dataframe):
     

@@ -1,5 +1,6 @@
-import requests 
+import requests
 import os
+import orjson
 from datetime import datetime
 import pandas as pd
 
@@ -7,12 +8,8 @@ from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from dags.conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
+from dags.transforms import clean_dataframe
 
-
-def transform(dataframe):
-    # Drop abstract
-    df = dataframe.drop(['abstract'], axis=1)
-    return df
 
 @dag(
     dag_id='api_to_db',
@@ -23,20 +20,23 @@ def transform(dataframe):
     template_searchpath=DATA_FOLDER,
     default_args=DEFAULT_ARGS
 )
+
 def ApiToDB():
-    @task(task_id = 'fetch_data')
-    def fetch_data(url, params, folder, file):
+    @task(task_id = 'fetch_and_clean')
+    def fetch_and_clean(url, folder, file):
         # Get data from API
         r = requests.get(url=url)
+        json: [dict] = orjson.loads(r.content)
+        df = pd.json_normalize(json, ["result"])
 
-        # Convert json to dataframe
-        j = r.json()
-        df = pd.json_normalize(j, ["result"])
+        df = clean_dataframe(df)
+        df.to_csv(os.path.join(folder, file), index=False)
 
-        df = transform(df)
+    @task(task_id = 'enrich')
+    def enrich(url, folder, file):
+        df = pd.read_csv(os.path.join(folder, file))
 
-        # Save dataframe to csv
-        df[['title', 'doi']].to_csv(os.path.join(folder, file), index=False)
+
 
     @task(task_id='csv_to_db')
     def csv_to_db(folder, input_file):
@@ -51,6 +51,6 @@ def ApiToDB():
         conn.commit()
         os.remove(os.path.join(folder, input_file))
 
-    fetch_data(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> csv_to_db(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME)
+    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> csv_to_db(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

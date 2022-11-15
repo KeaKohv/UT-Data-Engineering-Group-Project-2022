@@ -1,7 +1,7 @@
 from datetime import datetime
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.decorators import task, dag
-from dags.conf import DEFAULT_ARGS
+from conf import DEFAULT_ARGS
 
 
 

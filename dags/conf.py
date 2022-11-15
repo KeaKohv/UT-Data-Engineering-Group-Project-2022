@@ -10,5 +10,5 @@ API_PARAMS = {
     'inc': 'title,doi'
 }
 DATA_FOLDER = '/tmp/data'
-ARXIV_FILE_NAME = 'arxiv.csv'
+ARXIV_FILE_NAME = 'arxiv.json'
 SQL_FILE_NAME = 'insert_arxiv.sql'

@@ -1,14 +1,13 @@
 import requests
 import os
-import orjson
 from datetime import datetime
 import pandas as pd
 
 from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-from dags.conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
-from dags.transforms import clean_dataframe
+from transforms import clean_dataframe
+from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
 
 from enrich import enrich
 
@@ -25,23 +24,22 @@ from enrich import enrich
 
 def ApiToDB():
     @task(task_id = 'fetch_and_clean')
-    def fetch_and_clean(url, folder, file):
+    def fetch_and_clean(url, folder, file, **kwargs):
         # Get data from API
         r = requests.get(url=url)
-        json: [dict] = orjson.loads(r.content)
-        df = pd.json_normalize(json, ["result"])
+        df = pd.json_normalize(r.json(), ["result"])
 
         df = clean_dataframe(df)
-        df.to_csv(os.path.join(folder, file), index=False)
+        df.to_json(os.path.join(folder, file))
 
-    @task(task_id = 'enrich')
-    def enrich(url, folder, file):
-        df = pd.read_csv(os.path.join(folder, file))
+    @task(task_id = 'enrich_data')
+    def enrich_data(url, folder, file, **kwargs):
+        df = pd.read_json(os.path.join(folder, file))
         df = enrich(df)
-        df.to_csv(os.path.join(folder, file), index=False)
+        df.to_json(os.path.join(folder, file))
 
     @task(task_id='csv_to_db')
-    def csv_to_db(folder, input_file):
+    def csv_to_db(folder, input_file, **kwargs):
         postgres_hook = PostgresHook(postgres_conn_id="project_pg")
         conn = postgres_hook.get_conn()
         cur = conn.cursor()
@@ -53,6 +51,6 @@ def ApiToDB():
         conn.commit()
         os.remove(os.path.join(folder, input_file))
 
-    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME)
+    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich_data(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

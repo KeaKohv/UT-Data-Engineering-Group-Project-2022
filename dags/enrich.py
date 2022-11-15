@@ -1,7 +1,4 @@
-from typing import TypedDict
-
 import pandas as pd
-import orjson
 from habanero import Crossref
 
 class CrossRefFieldExtractor:
@@ -52,26 +49,18 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
         aux = extract(result['message']['items'][0])
         extra.append(aux)
         time.sleep(0.1)
-    dataframe.drop(['doi', ], axis=1, inplace=True)
+    dataframe.drop(['doi', 'title'], axis=1, inplace=True)
     dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
     dataframe = merge_authorlists(dataframe)
     assign_genders(dataframe['authors_merged'])
     return dataframe
 
 
-class Affiliation(TypedDict):
-    name: str
-
-class Author(TypedDict):
-    given: str
-    family: str
-    affiliation: dict
-
 def n_utf8_bytes(x: str):
     return len(x.encode('utf8'))
 
 
-def merge_author_names(old: Author, new: Author):
+def merge_author_names(old, new):
     old_name_score = int(len(old['given']) > 0) + int(len(old['family']))
     new_name_score = int(len(new['given']) > 0) + int(len(new['family']))
 
@@ -88,7 +77,7 @@ def merge_author_names(old: Author, new: Author):
         family = max(old['family'], new['family'], key=n_utf8_bytes)
         return dict(given=given, family=family)
 
-def merge_author_affiliations(old: Author, new: Author):
+def merge_author_affiliations(old, new):
     if len(old['affiliation']) > 0:
         old = old['affiliation'].pop(0).get('name')
     else:
@@ -117,12 +106,16 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
         old = t.authors_parsed
         authorlist = []
         for n, o in zip(new, old):
-            authorlist.append(merge_author_names(o, n) | merge_author_affiliations(o, n))
+            authors = merge_author_names(o, n)
+            authors.update(merge_author_affiliations(o, n))
+            authorlist.append(authors)
         merged.append(authorlist)
     dataframe['authors_merged'] = merged
     return dataframe
 
 if __name__ == '__main__':
+    import orjson
+
     lines = [
         orjson.loads(s)
         for s in open('/home/joosep/Downloads/archive/arxiv-metadata-oai-snapshot.json', 'r')

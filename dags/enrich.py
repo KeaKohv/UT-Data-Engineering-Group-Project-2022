@@ -1,3 +1,5 @@
+from typing import TypedDict
+
 import pandas as pd
 import orjson
 from habanero import Crossref
@@ -73,7 +75,61 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
         extra.append(aux)
         time.sleep(0.1)
     dataframe.drop(['doi', ], axis=1, inplace=True)
-    return pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
+    dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
+    dataframe = merge_authorlists(dataframe)
+    return dataframe
+
+
+class Affiliation(TypedDict):
+    name: str
+
+class Author(TypedDict):
+    given: str
+    family: str
+    affiliation: dict
+
+def n_utf8_bytes(x: str):
+    return len(x.encode('utf8'))
+
+
+def merge_author_names(old: Author, new: Author):
+    old_name_score = int(len(old['given']) > 0) + int(len(old['family']))
+    new_name_score = int(len(new['given']) > 0) + int(len(new['family']))
+
+    if new_name_score > old_name_score:
+        given = new['given']
+        family = new['family']
+        return dict(given=given, family=family)
+    elif new_name_score < old_name_score:
+        given = old['given']
+        family = old['family']
+        return dict(given=given, family=family)
+    else:
+        given = max(old['given'], new['given'], key=n_utf8_bytes)
+        family = max(old['family'], new['family'], key=n_utf8_bytes)
+        return dict(given=given, family=family)
+
+def merge_author_affiliations(old: Author, new: Author):
+    if len(old['affiliation']) > 0:
+        old = old['affiliation'].pop(0).get('name')
+    else:
+        old = ''
+
+    if len(new['affiliation']) > 0:
+        new = new['affiliation'].pop(0).get('name')
+    else:
+        new = ''
+
+    if len(old) == 0 and len(new) == 0:
+        return dict(affiliation=None)
+    elif len(old) > len(new):
+        return dict(affiliation=old)
+    elif len(old) < len(new):
+        return dict(affiliation=new)
+    else:
+        return dict(affiliation=max(old, new, key=n_utf8_bytes))
+
+
 
 def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
     merged = []
@@ -82,25 +138,22 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
         old = t.authors_parsed
         authorlist = []
         for n, o in zip(new, old):
-            # TODO: merge author lists
-            if ' ' not in o['family']:
-            family = o['family']
-            given = max(o['given'], n['given'], key=len)
-            affiliations = max(o['affiliation'], n['affiliation'], key=lambda x: len(''.join(x)))
-            authorlist.append(dict(family=family, given=given, affiliations=affiliations))
+            print(n, o)
+            authorlist.append(merge_author_names(o, n) | merge_author_affiliations(o, n))
         merged.append(authorlist)
+    dataframe['authors_merged'] = merged
+    return dataframe
 
 if __name__ == '__main__':
     lines = [
         orjson.loads(s)
-        for s in open('/home/joosep/Downloads/arxiv-dataset/arxiv-metadata-oai-snapshot.json.aa', 'r')
+        for s in open('/home/joosep/Downloads/archive/arxiv-metadata-oai-snapshot.json', 'r')
     ]
     from transforms import clean_dataframe
 
-    record = pd.DataFrame.from_records(lines[:40])
+    record = pd.DataFrame.from_records(lines[25:30])
     record = clean_dataframe(record)
     extra = enrich(record)
-    extra['merged'] = merge_authorlists(extra)
-
-    extra.to_csv('enriched.csv', index=False)
+    # extra['merged'] = merge_authorlists(extra)
+    # extra.to_csv('enriched.csv', index=False)
 

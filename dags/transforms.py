@@ -38,11 +38,10 @@ def get_authors_and_affiliations(authors_parsed):
     return authors, affiliations
 
 def extract_name_and_affiliation(l):
-    family = l[0] or None
-    given = l[1] or None
+    family = l[0] or ''
+    given = l[1] or ''
     affiliation = list(filter(len, l[2:])) or []
-    assert len(family) and family is not None
-    return dict(family=family, given=given, affiliation=affiliation)
+    return dict(family=family, given=given, affiliation=[dict(name=affiliation)])
 
 def extract_names_and_affiliations(ls):
     return [

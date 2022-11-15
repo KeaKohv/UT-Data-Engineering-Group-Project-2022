@@ -10,6 +10,8 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from dags.conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
 from dags.transforms import clean_dataframe
 
+from enrich import enrich
+
 
 @dag(
     dag_id='api_to_db',
@@ -35,8 +37,8 @@ def ApiToDB():
     @task(task_id = 'enrich')
     def enrich(url, folder, file):
         df = pd.read_csv(os.path.join(folder, file))
-
-
+        df = enrich(df)
+        df.to_csv(os.path.join(folder, file), index=False)
 
     @task(task_id='csv_to_db')
     def csv_to_db(folder, input_file):
@@ -51,6 +53,6 @@ def ApiToDB():
         conn.commit()
         os.remove(os.path.join(folder, input_file))
 
-    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> csv_to_db(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME)
+    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

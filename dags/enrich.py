@@ -4,34 +4,6 @@ import pandas as pd
 import orjson
 from habanero import Crossref
 
-"""
-{'DOI': '10.1016/s0370-2693(96)01409-8',
- 'author': [{'affiliation': [],
-             'family': 'Fioravanti',
-             'given': 'D',
-             'sequence': 'first'},
-            {'affiliation': [],
-             'family': 'Mariottini',
-             'given': 'A',
-             'sequence': 'additional'},
-            {'affiliation': [],
-             'family': 'Quattrini',
-             'given': 'E',
-             'sequence': 'additional'},
-            {'affiliation': [],
-             'family': 'Ravanini',
-             'given': 'F',
-             'sequence': 'additional'}],
- 'container-title': ['Physics Letters B'],
- 'is-referenced-by-count': 128,
- 'published': {'date-parts': [[1997, 1]]},
- 'publisher': 'Elsevier BV',
- 'subject': ['Nuclear and High Energy Physics'],
- 'title': ['Excited state Destri-De Vega equation for sine-Gordon and '
-           'restricted sine-Gordon models'],
- 'type': 'journal-article'}
-"""
-
 class CrossRefFieldExtractor:
     fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published', 'reference']
 
@@ -63,6 +35,12 @@ class CrossRefFieldExtractor:
 
 
 import time
+
+def assign_genders(authors_merged: pd.Series)->pd.Series:
+    for authorlist in authors_merged:
+        for author in authorlist:
+            author['gender'] = None
+
 def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     extract = CrossRefFieldExtractor()
     cr = Crossref()
@@ -77,6 +55,7 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe.drop(['doi', ], axis=1, inplace=True)
     dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
     dataframe = merge_authorlists(dataframe)
+    assign_genders(dataframe['authors_merged'])
     return dataframe
 
 

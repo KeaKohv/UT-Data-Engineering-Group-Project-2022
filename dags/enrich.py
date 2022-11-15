@@ -33,7 +33,7 @@ from habanero import Crossref
 """
 
 class CrossRefFieldExtractor:
-    fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published']
+    fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published', 'reference']
 
     def __call__(self, response):
         data = {}

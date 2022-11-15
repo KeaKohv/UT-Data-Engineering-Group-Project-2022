@@ -138,7 +138,6 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
         old = t.authors_parsed
         authorlist = []
         for n, o in zip(new, old):
-            print(n, o)
             authorlist.append(merge_author_names(o, n) | merge_author_affiliations(o, n))
         merged.append(authorlist)
     dataframe['authors_merged'] = merged

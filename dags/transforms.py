@@ -20,23 +20,6 @@ def remove_duplicates(dataframe: pd.DataFrame) -> pd.DataFrame:
     titles: pd.Series = dataframe['title'].apply(normalise) + dataframe['authors'].apply(normalise)
     return dataframe.loc[~titles.duplicated()]
 
-def get_authors_and_affiliations(authors_parsed):
-    authors = []
-    affiliations = []
-    for p in authors_parsed:
-        try:
-            i = p.index('')
-            authors.append(p[:i])
-            if i == len(p)-1:
-                affiliations.append([])
-            else:
-                affiliations.append(p[i+1:])
-        except ValueError:
-            authors.append(p)
-            affiliations.append([])
-            continue
-    return authors, affiliations
-
 def extract_name_and_affiliation(l):
     family = l[0] or ''
     given = l[1] or ''
@@ -44,17 +27,12 @@ def extract_name_and_affiliation(l):
     return dict(family=family, given=given, affiliation=[dict(name=affiliation)])
 
 def extract_names_and_affiliations(ls):
-    return [
-        extract_name_and_affiliation(l)
-        for l in ls
-    ]
+    return list(map(extract_name_and_affiliation, ls))
 
 from operator import itemgetter
 
 def latest_version(s):
     return itemgetter('version')(itemgetter(-1)(s))
-
-
 
 def clean_dataframe(dataframe):
     dataframe = remove_withdrawn_articles(dataframe)
@@ -65,8 +43,5 @@ def clean_dataframe(dataframe):
     dataframe['journal-ref'] = dataframe['journal-ref'].str.replace('\n','')
     dataframe = remove_duplicates(dataframe)
 
-    authors, affs = get_authors_and_affiliations(dataframe['authors_parsed'])
     dataframe['authors_parsed'] = dataframe['authors_parsed'].apply(extract_names_and_affiliations)
-    dataframe['authors'] = authors
-    dataframe['affiliation'] = affs
     return dataframe

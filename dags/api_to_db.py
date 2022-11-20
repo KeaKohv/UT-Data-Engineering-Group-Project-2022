@@ -7,7 +7,7 @@ from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from transforms import clean_dataframe
-from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
+from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME, ARXIV_FILE_NAME_CSV
 
 from enrich import enrich
 
@@ -33,10 +33,10 @@ def ApiToDB():
         df.to_json(os.path.join(folder, file))
 
     @task(task_id = 'enrich_data')
-    def enrich_data(url, folder, file, **kwargs):
-        df = pd.read_json(os.path.join(folder, file))
+    def enrich_data(folder, input_file, output_file, **kwargs):
+        df = pd.read_json(os.path.join(folder, input_file))
         df = enrich(df)
-        df.to_json(os.path.join(folder, file))
+        df.to_csv(os.path.join(folder, output_file), index=False)
 
     @task(task_id='csv_to_db')
     def csv_to_db(folder, input_file, **kwargs):
@@ -51,6 +51,6 @@ def ApiToDB():
         conn.commit()
         os.remove(os.path.join(folder, input_file))
 
-    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich_data(url=API_URL, folder=DATA_FOLDER, file=ARXIV_FILE_NAME)
+    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME_CSV)
 
 dag = ApiToDB()

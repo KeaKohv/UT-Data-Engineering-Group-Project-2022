@@ -17,6 +17,8 @@ def remove_withdrawn_articles(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def remove_duplicates(dataframe: pd.DataFrame) -> pd.DataFrame:
+    #df = df.sort_values(by=['doi','update_date']).drop_duplicates(subset=(['title','authors']), keep='last')
+    # Praegune vist ei arvesta sellega, et doi-ga recordit eelistada?
     titles: pd.Series = dataframe['title'].apply(normalise) + dataframe['authors'].apply(normalise)
     return dataframe.loc[~titles.duplicated()]
 
@@ -38,6 +40,7 @@ def clean_dataframe(dataframe):
     dataframe = remove_withdrawn_articles(dataframe)
     dataframe.drop(['comments', 'abstract', 'license', 'update_date', 'report-no'], axis=1, inplace=True)
     dataframe['versions'] = dataframe['versions'].apply(latest_version)
+    dataframe.dropna(subset=['authors'])
     dataframe['title'] = dataframe['title'].str.replace('\n','')
     dataframe['authors'] = dataframe['authors'].str.replace('\n','')
     dataframe['journal-ref'] = dataframe['journal-ref'].str.replace('\n','')

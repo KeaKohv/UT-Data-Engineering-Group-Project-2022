@@ -11,7 +11,7 @@ from conf import DEFAULT_ARGS
      tags=['project'],
      start_date=datetime(2022,9,1,0,0,0)
      )
-def CreateTables():
+def CreateTables(): # VAJAB UUENDAMIST, võiks olla üldsegi enne andmebaasi sisestamist
     create_tables = PostgresOperator(
         task_id='create_tables',
         postgres_conn_id='project_pg',

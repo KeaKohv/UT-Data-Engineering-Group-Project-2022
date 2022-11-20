@@ -11,4 +11,5 @@ API_PARAMS = {
 }
 DATA_FOLDER = '/tmp/data'
 ARXIV_FILE_NAME = 'arxiv.json'
+ARXIV_FILE_NAME_CSV = 'arxiv.csv'
 SQL_FILE_NAME = 'insert_arxiv.sql'

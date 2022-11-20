@@ -1,4 +1,8 @@
 import pandas as pd
+import time
+import requests
+from scholarly import scholarly
+from pprint import pprint
 from habanero import Crossref
 
 class CrossRefFieldExtractor:
@@ -31,12 +35,90 @@ class CrossRefFieldExtractor:
         return data
 
 
-import time
-
-def assign_genders(authors_merged: pd.Series)->pd.Series:
+def assign_genders(authors_merged: pd.Series)->pd.Series: # POLE VAJA
     for authorlist in authors_merged:
         for author in authorlist:
             author['gender'] = None
+
+
+def process_names(nameslist):
+    '''
+    Define names for querying scholarly. Search won't work if name contains dots.
+    '''
+    names = nameslist[::-1]
+    *first_names, last_name = names
+
+    initial_or_first_name = ' '.join(first_names).split(' ')[0]
+    initial_or_first_name = ''.join(filter(str.isalnum, initial_or_first_name))
+    fullname = initial_or_first_name + ' ' + last_name
+    return fullname
+
+
+def find_gender(full_name):
+    '''
+    Query AMiner Gender API for author's gender
+    '''
+    
+    if full_name.count(" ") == 1:
+        first_name, last_name = full_name.split(' ')
+    elif full_name.count(" ") == 2:
+        # For finding names where the middle name is included as an inital
+        first_name, middle, last_name = full_name.split(' ')
+    
+    # Hetkel ei tööta siis, kui perekonnanimi on mitme sõnaga nt "Wanderley Dantas dos Santos".
+    # Samas see full_name on sisend scholarly-st ja scholarly ei ütle, mis on eesnimi ja mis perekonnanimi.
+    # Seega ei oska sellist case-i siia kirja panna.
+
+    try:
+        url = f'https://innovaapi.aminer.cn/tools/v1/predict/gender?name={first_name}+{last_name}&org='
+        r = requests.get(url=url)
+        data = r.json()
+        gender = data['data']['Final']['gender']
+    except:
+        gender = 'UNKNOWN'
+    return gender
+
+
+
+def get_names_aff_gender(authors_merged: pd.Series)->pd.Series:
+    '''
+    Takes authors from the 'authors_merged' field and
+    adds full name, affiliation and gender for each author
+    '''
+    for authorlist in authors_merged:
+        for author in authorlist:
+            name = process_names([str(author['family']), str(author['given'])])
+            print('Full name, aff and gender search:')
+            print(name)
+            try:
+                search_query = scholarly.search_author(name)
+                first_author_result = next(search_query) # Esimene vaste ei pruugi alati õige olla ja ei pruugi üldse vastet olla
+                author['full_name'] = first_author_result['name']
+                author['affiliation'] = first_author_result['affiliation'] # Võib olla mitu affiliationit
+            except:
+                author['full_name'] = 'None'
+
+                # Kui scholarly ei leia, siis jääb arxiv andmestiku info
+                if author['affiliation'] != None:
+                    author['affiliation'] = str(author['affiliation'])
+
+            try:
+                # Praegu küsib ainult siis, kui scholarly-s oli autor olemas
+                # Võiks lisada selle, et kui full_name pole, aga given on olemas (pole initsiaal), siis küsib ka
+                if author['full_name'] != 'None':
+                    gender = find_gender(author['full_name'])
+                    if gender != 'UNKNOWN':
+                        author['gender'] = gender
+                    else:
+                        author['gender'] = 'None'
+                else:
+                        author['gender'] = 'None'
+            except:
+                author['gender'] = 'None'
+
+            print(author)
+            time.sleep(0.1)
+
 
 def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     extract = CrossRefFieldExtractor()
@@ -53,6 +135,12 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
     dataframe = merge_authorlists(dataframe)
     assign_genders(dataframe['authors_merged'])
+
+    # Kea added:
+    get_names_aff_gender(dataframe['authors_merged'])
+    dataframe.drop(['authors','authors_parsed','categories', 'journal-ref', 'journal-ref', 'submitter', 'author'],
+                   axis=1, inplace=True)
+
     return dataframe
 
 

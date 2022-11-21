@@ -137,9 +137,8 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     assign_genders(dataframe['authors_merged'])
 
     # Kea added:
-    get_names_aff_gender(dataframe['authors_merged'])
-    dataframe.drop(['authors','authors_parsed','categories', 'journal-ref', 'journal-ref', 'submitter', 'author'],
-                   axis=1, inplace=True)
+    # get_names_aff_gender(dataframe['authors_merged'])
+    # dataframe.drop(['authors','authors_parsed','categories', 'journal-ref', 'journal-ref', 'submitter', 'author'], axis=1, inplace=True)
 
     return dataframe
 

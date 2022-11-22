@@ -16,13 +16,16 @@ from enrich import enrich
 
 
 def row_to_neo4j(r):
+    # TODO: some titles may contain html if they come from crossref, prefer arxiv titles?
     queries = []
-    piece = f"""CREATE (:Piece {{title: \"{r['title']}\", year: {r['published-year']}}})"""
+    piece_properties = f"""{{title: \"{r['title']}\", year: {r['published-year']} }}"""
+    piece = f"""CREATE (:Piece {piece_properties})"""
     queries.append(piece)
 
-    q = f"MATCH (p:Piece {{title: \"{r['title']}\", year: {r['published-year']}}}) CREATE (a: Author "
+    q = f"MATCH (p:Piece {piece_properties}) CREATE (a: Author "
     for author in r['authors_merged']:
-        queries.append(q + f'{{ family: "{author["family"]}", given: "{author["given"]}" }})-[:AUTHORS]->(p);')
+        author_properties = f'{{ family: "{author["family"]}", given: "{author["given"]}" }}'
+        queries.append(q + f'{author_properties})-[:AUTHORS]->(p);')
     return queries
 
 

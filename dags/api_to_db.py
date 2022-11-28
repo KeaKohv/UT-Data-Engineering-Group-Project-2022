@@ -2,6 +2,7 @@ import requests
 import os
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -18,9 +19,10 @@ from enrich import enrich
 def row_to_neo4j(r):
     # TODO: some titles may contain html if they come from crossref, prefer arxiv titles?
     queries = []
-    title = r['title'].replace('"', r'\"')
-    piece_properties = f"""{{title: \"{title}\""""
-    if r['published-year']:
+    title = r['title'].replace('"', '\\"')
+    print(title)
+    piece_properties = "{title: \"" + title + "\""
+    if not np.isnan(r['published-year']):
         piece_properties += f""", year: {int(r['published-year'])}"""
     piece_properties += "}"
     piece = f"""CREATE (:Piece {piece_properties})"""
@@ -41,7 +43,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/5 * * * *',
+    schedule_interval='*/1 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],

@@ -1,0 +1,60 @@
+CREATE TABLE authors (
+	author_key INT GENERATED ALWAYS AS IDENTITY,
+	first_name VARCHAR(30), 
+	last_name VARCHAR(30),
+	gender VARCHAR(1),
+	h_index INT,
+	g_index INT,
+	PRIMARY KEY(author_key)
+);
+
+CREATE TABLE year_ (
+	year_key INT GENERATED ALWAYS AS IDENTITY,
+	publiction_year int,
+	PRIMARY KEY(year_key)
+);
+
+CREATE TABLE domain_ (
+	domain_key INT GENERATED ALWAYS AS IDENTITY,
+	scientific_domain VARCHAR(50),
+	PRIMARY KEY(domain_key)
+);
+
+CREATE TABLE type_ (
+	type_key int GENERATED ALWAYS AS IDENTITY,
+	type_name VARCHAR(30),
+	PRIMARY KEY(type_key)
+);
+
+CREATE TABLE venue (
+	venue_key int GENERATED ALWAYS AS IDENTITY,
+	pub_venue VARCHAR(100),
+	publisher VARCHAR(200),
+	PRIMARY KEY(venue_key)
+);
+
+CREATE TABLE author_group (
+	paper_key INT,
+	author_key INT,
+	CONSTRAINT fk_paper_key_author_bridge FOREIGN KEY(paper_key) REFERENCES paper_fact(paper_key),
+	CONSTRAINT fk_author_key_author_bridge FOREIGN KEY(author_key) REFERENCES authors(author_key),
+	PRIMARY KEY(paper_key, author_key)
+);
+
+CREATE TABLE paper_fact (
+	paper_key INT GENERATED ALWAYS AS IDENTITY, 
+	year_key INT,
+	domain_key INT,
+	type_key INT,
+	venue_key INT, 
+	arxiv_ID VARCHAR(9),
+	doi VARCHAR(40),
+	title VARCHAR(200) NOT NULL,
+	latest_version_nr VARCHAR(3),
+	citaton_count INT,
+	CONSTRAINT fk_year_key_fact FOREIGN KEY(year_key) REFERENCES year_(year_key),
+	CONSTRAINT fk_domain_key_fact FOREIGN KEY(domain_key) REFERENCES domain_(domain_key),
+	CONSTRAINT fk_type_key_fact FOREIGN KEY(type_key) REFERENCES type_(type_key),
+CONSTRAINT fk_venue_key_fact FOREIGN KEY(venue_key) REFERENCES venue(venue_key),
+	PRIMARY KEY(paper_key)
+);

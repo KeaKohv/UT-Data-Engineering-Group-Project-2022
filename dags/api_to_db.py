@@ -18,7 +18,11 @@ from enrich import enrich
 def row_to_neo4j(r):
     # TODO: some titles may contain html if they come from crossref, prefer arxiv titles?
     queries = []
-    piece_properties = f"""{{title: \"{r['title']}\", year: {r['published-year']} }}"""
+    title = r['title'].replace('"', r'\"')
+    piece_properties = f"""{{title: \"{title}\""""
+    if r['published-year']:
+        piece_properties += f""", year: {int(r['published-year'])}"""
+    piece_properties += "}"
     piece = f"""CREATE (:Piece {piece_properties})"""
     queries.append(piece)
 

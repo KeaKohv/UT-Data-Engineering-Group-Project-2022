@@ -5,23 +5,42 @@ import pandas as pd
 
 from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
+from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+
 
 from transforms import clean_dataframe
-from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME, ARXIV_FILE_NAME_CSV
+from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
 
 from enrich import enrich
 
 
+def row_to_neo4j(r):
+    queries = []
+    piece = f"""CREATE (:Piece {{title: \"{r['title']}\", year: {r['published-year']}}})"""
+    queries.append(piece)
+
+    q = f"MATCH (p:Piece {{title: \"{r['title']}\", year: {r['published-year']}}}) CREATE (a: Author "
+    for author in r['authors_merged']:
+        queries.append(q + f'{{ family: "{author["family"]}", given: "{author["given"]}" }})-[:AUTHORS]->(p);')
+    return queries
+
+
+
+def neo4j_query():
+    with open(os.path.join(DATA_FOLDER, 'neo4j.cyp'), 'r') as f:
+        return ''.join(f.readlines())
+
+
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/1 * * * *',
+    schedule_interval='*/5 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
     template_searchpath=DATA_FOLDER,
     default_args=DEFAULT_ARGS
 )
-
 def ApiToDB():
     @task(task_id = 'fetch_and_clean')
     def fetch_and_clean(url, folder, file, **kwargs):
@@ -36,7 +55,18 @@ def ApiToDB():
     def enrich_data(folder, input_file, output_file, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
         df = enrich(df)
-        df.to_csv(os.path.join(folder, output_file), index=False)
+        df.to_json(os.path.join(folder, output_file))
+
+    @task(task_id = 'json_to_neo4j_query')
+    def json_to_neo4j_query(folder, input_file, output_file, **kwargs):
+        df = pd.read_json(os.path.join(folder, input_file))
+        neo4j_hook = Neo4jHook(conn_id='neo4j')
+        for i, r in df.iterrows():
+            queries = row_to_neo4j(r)
+            for q in queries:
+                print(q)
+                neo4j_hook.run(q)
+
 
     @task(task_id='csv_to_db')
     def csv_to_db(folder, input_file, **kwargs):
@@ -51,6 +81,8 @@ def ApiToDB():
         conn.commit()
         os.remove(os.path.join(folder, input_file))
 
-    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME_CSV)
+    fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> \
+    enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
+    json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

@@ -128,7 +128,11 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
         result = cr.works(limit=1, query_author=authors, doi=t.doi, query_title=t.title)
-        aux = extract(result['message']['items'][0])
+        try:
+            item = result['message']['items'][0]
+        except IndexError:
+            item = {}
+        aux = extract(item)
         extra.append(aux)
         time.sleep(0.1)
     dataframe.drop(['doi', 'title'], axis=1, inplace=True)

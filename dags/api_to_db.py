@@ -17,10 +17,8 @@ from enrich import enrich
 
 
 def row_to_neo4j(r):
-    # TODO: some titles may contain html if they come from crossref, prefer arxiv titles?
     queries = []
-    title = r['title'].replace('"', '\\"')
-    print(title)
+    title = r['title'].replace('\\', '\\\\').replace('"', '\\"')
     piece_properties = "{title: \"" + title + "\""
     if not np.isnan(r['published-year']):
         piece_properties += f""", year: {int(r['published-year'])}"""

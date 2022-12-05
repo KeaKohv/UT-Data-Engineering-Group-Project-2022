@@ -128,7 +128,11 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
         result = cr.works(limit=1, query_author=authors, doi=t.doi, query_title=t.title)
-        aux = extract(result['message']['items'][0])
+        try:
+            item = result['message']['items'][0]
+        except IndexError:
+            item = {}
+        aux = extract(item)
         extra.append(aux)
         time.sleep(0.1)
     dataframe.drop(['doi', 'title'], axis=1, inplace=True)
@@ -148,20 +152,20 @@ def n_utf8_bytes(x: str):
 
 
 def merge_author_names(old, new):
-    old_name_score = int(len(old['given']) > 0) + int(len(old['family']))
-    new_name_score = int(len(new['given']) > 0) + int(len(new['family']))
+    old_name_score = int(len(old.get('given', '')) > 0) + int(len(old.get('family', '')))
+    new_name_score = int(len(new.get('given', '')) > 0) + int(len(new.get('family', '')))
 
     if new_name_score > old_name_score:
-        given = new['given']
-        family = new['family']
+        given = new.get('given', '')
+        family = new.get('family', '')
         return dict(given=given, family=family)
     elif new_name_score < old_name_score:
-        given = old['given']
-        family = old['family']
+        given = old.get('given', '')
+        family = old.get('family', '')
         return dict(given=given, family=family)
     else:
-        given = max(old['given'], new['given'], key=n_utf8_bytes)
-        family = max(old['family'], new['family'], key=n_utf8_bytes)
+        given = max(old.get('given', ''), new.get('given', ''), key=n_utf8_bytes)
+        family = max(old.get('family', ''), new.get('family', ''), key=n_utf8_bytes)
         return dict(given=given, family=family)
 
 def merge_author_affiliations(old, new):

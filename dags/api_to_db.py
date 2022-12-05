@@ -2,6 +2,7 @@ import requests
 import os
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -18,12 +19,18 @@ from enrich import enrich
 
 def row_to_neo4j(r):
     queries = []
-    piece = f"""CREATE (:Piece {{title: \"{r['title']}\", year: {r['published-year']}}})"""
+    title = r['title'].replace('\\', '\\\\').replace('"', '\\"')
+    piece_properties = "{title: \"" + title + "\""
+    if not np.isnan(r['published-year']):
+        piece_properties += f""", year: {int(r['published-year'])}"""
+    piece_properties += "}"
+    piece = f"""CREATE (:Piece {piece_properties})"""
     queries.append(piece)
 
-    q = f"MATCH (p:Piece {{title: \"{r['title']}\", year: {r['published-year']}}}) CREATE (a: Author "
+    q = f"MATCH (p:Piece {piece_properties}) CREATE (a: Author "
     for author in r['authors_merged']:
-        queries.append(q + f'{{ family: "{author["family"]}", given: "{author["given"]}" }})-[:AUTHORS]->(p);')
+        author_properties = f'{{ family: "{author["family"]}", given: "{author["given"]}" }}'
+        queries.append(q + f'{author_properties})-[:AUTHORS]->(p);')
     return queries
 
 
@@ -35,7 +42,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/5 * * * *',
+    schedule_interval='*/1 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],

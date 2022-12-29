@@ -15,21 +15,39 @@ from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
 
 from enrich import enrich
 
+def clean_title(t):
+    return t.replace('\\', '\\\\').replace('"', '\\"')
 
 def row_to_neo4j(r):
     queries = []
-    title = r['title'].replace('\\', '\\\\').replace('"', '\\"')
+    title = clean_title(r['title'])
     piece_properties = "{title: \"" + title + "\""
     if not np.isnan(r['published-year']):
         piece_properties += f""", year: {int(r['published-year'])}"""
     piece_properties += "}"
-    piece = f"""CREATE (:Piece {piece_properties})"""
+    piece = f"""MERGE (:Piece {piece_properties})"""
     queries.append(piece)
 
-    q = f"MATCH (p:Piece {piece_properties}) CREATE (a: Author "
+    q = f"MATCH (p:Piece {piece_properties}) MERGE (a: Author "
     for author in r['authors_merged']:
         author_properties = f'{{ family: "{author["family"]}", given: "{author["given"]}" }}'
         queries.append(q + f'{author_properties})-[:AUTHORS]->(p);')
+
+    if r['reference'] is None:
+        return queries
+
+    # references
+    for ref in r['reference']:
+        if ref['title'] is None:
+            continue
+        ref_title = clean_title(ref['title'])
+        ref_properties = "{title: \"" + ref_title + "\""
+        if not np.isnan(r['published-year']):
+            ref_properties += f""", year: {int(r['published-year'])}"""
+        ref_properties += "}"
+        q = f"MATCH (p:Piece {piece_properties}) MERGE (p)-[:REFERENCES]->(r: Piece {ref_properties})"
+        queries.append(q)
+
     return queries
 
 
@@ -41,7 +59,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/5 * * * *',
+    schedule_interval='*/2 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],

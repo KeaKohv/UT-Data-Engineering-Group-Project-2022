@@ -17,7 +17,10 @@ class CrossRefFieldExtractor:
 
 
             if field in ['container-title', 'title', 'subject']:
-                data[field.lower()] = response.get(field)[0]
+                try:
+                    data[field.lower()] = response.get(field)[0]
+                except IndexError:
+                    data[field.lower()] = None
             elif field == 'published':
                 try:
                     year, *rest = response.get(field)['date-parts'][0]
@@ -120,6 +123,15 @@ def get_names_aff_gender(authors_merged: pd.Series)->pd.Series:
             time.sleep(0.1)
 
 
+class ReferenceInfo:
+    def get(self, references):
+        dois = []
+        for r in references:
+            if r.get('DOI') is not None:
+                dois.append(r['DOI'])
+        return dois
+
+ri = ReferenceInfo()
 def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     extract = CrossRefFieldExtractor()
     cr = Crossref()
@@ -128,10 +140,23 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
         result = cr.works(limit=1, query_author=authors, doi=t.doi, query_title=t.title)
-        try:
+        if result['status'] == 'ok':
             item = result['message']['items'][0]
-        except IndexError:
+            if item.get('reference', {}):
+                ids = ri.get(item['reference'])
+                refs = cr.works(ids=ids, warn=True) # don't throw exception if HTTP request fails
+                if not isinstance(refs, list):
+                    refs = [refs]
+                references = []
+                for r in refs:
+                    if r is not None and r['status'] == 'ok':
+                        references.append(extract(r['message']))
+                item['reference'] = references
+            else:
+                item['reference'] = []
+        else:
             item = {}
+            
         aux = extract(item)
         extra.append(aux)
         time.sleep(0.1)

@@ -3,11 +3,7 @@
 """
 from habanero import Crossref, WorksContainer
 
-import operator as op
-
 class ReferenceInfo:
-    keys = ['DOI', 'author', 'year']
-
     def get(self, references):
         dois = []
         for r in references:
@@ -52,4 +48,5 @@ if __name__ == '__main__':
     ri = ReferenceInfo()
     print(ri.get(refs))
     result = cr.works(ids = ri.get(refs))
+    print(result)
     print(len(refs), len(result))

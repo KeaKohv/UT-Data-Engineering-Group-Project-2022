@@ -1,7 +1,0 @@
-DROP TABLE IF EXISTS bridge_author_group;
-DROP TABLE IF EXISTS paper_fact;
-DROP TABLE IF EXISTS dim_type;
-DROP TABLE IF EXISTS dim_year;
-DROP TABLE IF EXISTS dim_domain;
-DROP TABLE IF EXISTS dim_venue;
-DROP TABLE IF EXISTS dim_author;

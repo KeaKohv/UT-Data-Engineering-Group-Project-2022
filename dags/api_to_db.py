@@ -42,7 +42,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/1 * * * *',
+    schedule_interval='*/10 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -74,14 +74,7 @@ def ApiToDB():
             for q in queries:
                 print(q)
                 neo4j_hook.run(q)
-
-    wait_for_create_tables = ExternalTaskSensor(
-        task_id="wait_for_create_tables",
-        external_dag_id="create_tables",
-        timeout=600,
-        allowed_states=["success"],
-        mode="reschedule",
-    )
+ 
 
     @task(task_id='csv_to_db') #Vananenud
     def csv_to_db(folder, input_file, **kwargs):
@@ -97,8 +90,7 @@ def ApiToDB():
         os.remove(os.path.join(folder, input_file))
 
     fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> \
-    enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
-    json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
-    wait_for_create_tables# >> csv_to_db(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME)
+    enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
+    #json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

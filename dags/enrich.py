@@ -1,6 +1,7 @@
 import pandas as pd
 import time
 import requests
+import numpy as np
 from scholarly import scholarly
 from pprint import pprint
 from habanero import Crossref
@@ -96,7 +97,8 @@ def get_names_aff_gender(authors_merged: pd.Series)->pd.Series:
                 author['full_name'] = first_author_result['name']
                 author['affiliation'] = first_author_result['affiliation'] # Võib olla mitu affiliationit
             except:
-                author['full_name'] = 'None'
+                # Kui scholarly ei leia, siis jääb arxiv andmestiku info
+                author['full_name'] = name
 
                 # Kui scholarly ei leia, siis jääb arxiv andmestiku info
                 if author['affiliation'] != None:
@@ -110,14 +112,15 @@ def get_names_aff_gender(authors_merged: pd.Series)->pd.Series:
                     if gender != 'UNKNOWN':
                         author['gender'] = gender
                     else:
-                        author['gender'] = 'None'
+                        author['gender'] = 'Unknown'
                 else:
-                        author['gender'] = 'None'
+                        author['gender'] = 'Unknown'
+                        author['full_name'] = process_names([str(author['family']), str(author['given'])])
             except:
-                author['gender'] = 'None'
+                author['gender'] = 'Unknown'
 
             print(author)
-            time.sleep(0.1)
+            time.sleep((30-5)*np.random.random()+5)
 
 
 def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -141,8 +144,8 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     assign_genders(dataframe['authors_merged'])
 
     # Kea added:
-    # get_names_aff_gender(dataframe['authors_merged'])
-    # dataframe.drop(['authors','authors_parsed','categories', 'journal-ref', 'journal-ref', 'submitter', 'author'], axis=1, inplace=True)
+    get_names_aff_gender(dataframe['authors_merged'])
+    dataframe.drop(['authors','authors_parsed','categories', 'journal-ref', 'journal-ref', 'submitter', 'author'], axis=1, inplace=True)
 
     return dataframe
 
@@ -205,17 +208,27 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 if __name__ == '__main__':
-    import orjson
 
-    lines = [
-        orjson.loads(s)
-        for s in open('/home/joosep/Downloads/archive/arxiv-metadata-oai-snapshot.json', 'r')
-    ]
+    import requests
+    import pandas as pd
     from transforms import clean_dataframe
 
-    record = pd.DataFrame.from_records(lines[25:30])
-    record = clean_dataframe(record)
+    r = requests.get(url='http://65.108.50.112:5000/data/arxiv')
+    df = pd.json_normalize(r.json(), ["result"])
+    record = clean_dataframe(df)
     extra = enrich(record)
+
+    #import orjson
+#
+ #   lines = [
+ #       orjson.loads(s)
+  #      for s in open('C:\\Users\\kohvk\\Downloads\\arxiv.json', 'r')
+  #  ]
+ #   from transforms import clean_dataframe
+
+ #   record = pd.DataFrame.from_records(lines[25:30])
+ #   record = clean_dataframe(record)
+ #   extra = enrich(record)
     # extra['merged'] = merge_authorlists(extra)
     # extra.to_csv('enriched.csv', index=False)
 

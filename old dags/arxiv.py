@@ -207,7 +207,7 @@ prep_sql_task = PythonOperator(
     },
 ) 
 
-waiting_for_arxiv >> prep_sql_task
+#waiting_for_arxiv >> prep_sql_task
 
 
 sql_insert_task = PostgresOperator(
@@ -219,7 +219,7 @@ sql_insert_task = PostgresOperator(
     autocommit=True,
 )
 
-prep_sql_task >> sql_insert_task
+#prep_sql_task >> sql_insert_task
 
 
 ### VANA ###

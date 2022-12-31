@@ -17,7 +17,10 @@ class CrossRefFieldExtractor:
 
 
             if field in ['container-title', 'title', 'subject']:
-                data[field.lower()] = response.get(field)[0]
+                try:
+                    data[field.lower()] = response.get(field)[0]
+                except IndexError:
+                    data[field.lower()] = None
             elif field == 'published':
                 try:
                     year, *rest = response.get(field)['date-parts'][0]
@@ -120,6 +123,15 @@ def get_names_aff_gender(authors_merged: pd.Series)->pd.Series:
             time.sleep(0.1)
 
 
+class ReferenceInfo:
+    def get(self, references):
+        dois = []
+        for r in references:
+            if r.get('DOI') is not None:
+                dois.append(r['DOI'])
+        return dois
+
+ri = ReferenceInfo()
 def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     extract = CrossRefFieldExtractor()
     cr = Crossref()
@@ -128,7 +140,24 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
         result = cr.works(limit=1, query_author=authors, doi=t.doi, query_title=t.title)
-        aux = extract(result['message']['items'][0])
+        if result['status'] == 'ok':
+            item = result['message']['items'][0]
+            if item.get('reference', {}):
+                ids = ri.get(item['reference'])
+                refs = cr.works(ids=ids, warn=True) # don't throw exception if HTTP request fails
+                if not isinstance(refs, list):
+                    refs = [refs]
+                references = []
+                for r in refs:
+                    if r is not None and r['status'] == 'ok':
+                        references.append(extract(r['message']))
+                item['reference'] = references
+            else:
+                item['reference'] = []
+        else:
+            item = {}
+            
+        aux = extract(item)
         extra.append(aux)
         time.sleep(0.1)
     dataframe.drop(['doi', 'title'], axis=1, inplace=True)
@@ -148,20 +177,20 @@ def n_utf8_bytes(x: str):
 
 
 def merge_author_names(old, new):
-    old_name_score = int(len(old['given']) > 0) + int(len(old['family']))
-    new_name_score = int(len(new['given']) > 0) + int(len(new['family']))
+    old_name_score = int(len(old.get('given', '')) > 0) + int(len(old.get('family', '')))
+    new_name_score = int(len(new.get('given', '')) > 0) + int(len(new.get('family', '')))
 
     if new_name_score > old_name_score:
-        given = new['given']
-        family = new['family']
+        given = new.get('given', '')
+        family = new.get('family', '')
         return dict(given=given, family=family)
     elif new_name_score < old_name_score:
-        given = old['given']
-        family = old['family']
+        given = old.get('given', '')
+        family = old.get('family', '')
         return dict(given=given, family=family)
     else:
-        given = max(old['given'], new['given'], key=n_utf8_bytes)
-        family = max(old['family'], new['family'], key=n_utf8_bytes)
+        given = max(old.get('given', ''), new.get('given', ''), key=n_utf8_bytes)
+        family = max(old.get('family', ''), new.get('family', ''), key=n_utf8_bytes)
         return dict(given=given, family=family)
 
 def merge_author_affiliations(old, new):
@@ -192,6 +221,8 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
         new = t.author
         old = t.authors_parsed
         authorlist = []
+        if new is None:
+            new = {}
         for n, o in zip(new, old):
             authors = merge_author_names(o, n)
             authors.update(merge_author_affiliations(o, n))
@@ -209,9 +240,41 @@ if __name__ == '__main__':
     ]
     from transforms import clean_dataframe
 
-    record = pd.DataFrame.from_records(lines[25:30])
+    record = pd.DataFrame.from_records(lines[25:35])
     record = clean_dataframe(record)
     extra = enrich(record)
-    # extra['merged'] = merge_authorlists(extra)
+    extra['merged'] = merge_authorlists(extra)
     # extra.to_csv('enriched.csv', index=False)
-
+"""
+[
+{'key': 'PhysRevLett.99.087402Cc1R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.2.393'}
+{'key': 'PhysRevLett.99.087402Cc2R1', 'doi-asserted-by': 'crossref', 'volume-title': 'Many-Particle Physics', 'author': 'G.\u2009D. Mahan', 'year': '2000', 'DOI': '10.1007/978-1-4757-5714-9'}
+{'key': 'PhysRevLett.99.087402Cc3R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1126/science.1102896'}
+{'key': 'PhysRevLett.99.087402Cc4R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1038/nature04233'}
+{'key': 'PhysRevLett.99.087402Cc5R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1038/nature04235'}
+{'key': 'PhysRevLett.99.087402Cc6R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.96.136806'}
+{'key': 'PhysRevLett.99.087402Cc7R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1038/nphys245'}
+{'key': 'PhysRevLett.99.087402Cc8R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1038/nmat1846'}
+{'key': 'PhysRevLett.99.087402Cc9R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.98.166802'}
+{'key': 'PhysRevLett.99.087402Cc10R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1143/JPSJ.75.124701'}
+{'key': 'PhysRevLett.99.087402Cc11R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevB.75.045404'}
+{'key': 'PhysRevLett.99.087402Cc12R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.97.266407'}
+{'key': 'PhysRevLett.99.087402Cc13R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRev.104.666'}
+{'key': 'PhysRevLett.99.087402Cc14R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.23.848'}
+{'key': 'PhysRevLett.99.087402Cc14R2', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevB.5.566'}
+{'key': 'PhysRevLett.99.087402Cc15R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1063/1.91815'}
+{'key': 'PhysRevLett.99.087402Cc15R2', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevB.53.16481'}
+{'key': 'PhysRevLett.99.087402Cc16R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1143/JPSJ.76.024712'}
+{'key': 'PhysRevLett.99.087402Cc17R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.97.187401'}
+{'key': 'PhysRevLett.99.087402Cc18R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1021/nl061420a'}
+{'key': 'PhysRevLett.99.087402Cc19R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1021/nl061702a'}
+{'key': 'PhysRevLett.99.087402Cc20R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevB.75.125430'}
+{'key': 'PhysRevLett.99.087402Cc21R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.97.266405'}
+{'key': 'PhysRevLett.99.087402Cc22R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevB.75.155430'}
+{'key': 'PhysRevLett.99.087402Cc23R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRevLett.93.185503'}
+{'key': 'PhysRevLett.99.087402Cc24R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1038/nmat1849'}
+{'key': 'PhysRevLett.99.087402Cc25R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1103/PhysRev.71.622'}
+{'key': 'PhysRevLett.99.087402Cc26R1', 'doi-asserted-by': 'crossref', 'volume-title': 'Physical Properties of Carbon Nanotubes', 'author': 'R. Saito', 'year': '1998', 'DOI': '10.1142/p080'}
+{'key': 'PhysRevLett.99.087402Cc27R1', 'doi-asserted-by': 'publisher', 'DOI': '10.1143/JPSJ.74.777'}
+]
+"""

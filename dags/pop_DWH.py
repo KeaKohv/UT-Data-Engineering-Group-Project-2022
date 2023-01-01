@@ -1,4 +1,3 @@
-import requests
 import os
 from datetime import datetime
 from metrics import hindex, gindex
@@ -7,16 +6,14 @@ import numpy as np
 
 from airflow.decorators import task, dag
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
-from airflow.sensors.external_task import ExternalTaskSensor
-from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+from airflow.sensors.filesystem import FileSensor
 
-from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
+from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
    
    
 @dag(
     dag_id='data_staging_and_DWH_insert',
-    schedule_interval='*/10 * * * *',
+    schedule_interval='*/5 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -37,10 +34,27 @@ def StageAndDWH():
     #     check_existence = True,
     # )
 
+    waiting_for_main_csv = FileSensor(
+    task_id='waiting_for_main_csv',
+    filepath=MAIN_FILE_NAME,
+    fs_conn_id='file_sensor_connection',
+    poke_interval=5,
+    timeout=100,
+    exponential_backoff=True,
+    )
+
+    waiting_for_authors_csv = FileSensor(
+    task_id='waiting_for_authors_csv',
+    filepath=AUTHORS_FILE_NAME,
+    fs_conn_id='file_sensor_connection',
+    poke_interval=5,
+    timeout=100,
+    exponential_backoff=True,
+    )
 
    # Data staging
     @task(task_id = 'json_to_staging_tables')
-    def json_to_staging(folder, input_file, output_file, **kwargs):
+    def json_to_staging(folder, file_main, file_authors, **kwargs):
 
         # Clean staging tables
         sql_statement = """DELETE FROM staging_main;
@@ -52,11 +66,11 @@ def StageAndDWH():
         cur = conn.cursor()
         cur.execute(sql_statement)
         conn.commit()
-
-        #df = pd.read_json(os.path.join(folder, input_file))
         
         # Mock data
-        df = pd.read_csv(os.path.join(folder, 'mock_main.csv'))
+        #df = pd.read_csv(os.path.join(folder, 'mock_main.csv'))
+
+        df = pd.read_csv(os.path.join(folder, file_main))
 
         # Insert data into main staging table
 
@@ -84,16 +98,10 @@ def StageAndDWH():
     
         cur.execute(sql_statement)
 
-        # Prepare data for authors staging table
-
-        # authors_df = df[['id','authors_merged']].copy()
-        # explded = authors_df.explode("authors_merged")
-        # authors_df_normalized = pd.json_normalize(explded['authors_merged'])
-        # authors_df_normalized['id'] = explded['id'].tolist()
-
-
         # Mock data
-        authors_df_normalized = pd.read_csv((os.path.join(folder, 'mock_authors.csv')))
+        #authors_df_normalized = pd.read_csv((os.path.join(folder, 'mock_authors.csv')))
+
+        authors_df_normalized = pd.read_csv(os.path.join(folder, file_authors))
 
         # Insert data into authors staging table
 
@@ -260,9 +268,9 @@ def StageAndDWH():
         conn.commit()
 
 
-        ### Update h-index and g-index for the authors of the added papers ###
+    ### Update h-index and g-index for the authors of the added papers ###
     @task(task_id = 'update_h_and_g_index')
-    def update_h_and_g_index(**kwargs):
+    def update_h_and_g_index(folder, file_main, file_authors, **kwargs):
 
         postgres_hook = PostgresHook(postgres_conn_id="project_pg")
         conn = postgres_hook.get_conn()
@@ -300,9 +308,13 @@ def StageAndDWH():
 
         conn.commit()
 
+        os.remove(os.path.join(folder,file_main))
+        os.remove(os.path.join(folder,file_authors))
 
-    # Vaja lisada wait for tables ja wait for json file/enrichment.
-    json_to_staging(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
-    staging_to_tables() >> update_h_and_g_index()
+
+    # Vaja lisada wait for tables
+    waiting_for_main_csv >> waiting_for_authors_csv >> \
+    json_to_staging(folder=DATA_FOLDER, file_main=MAIN_FILE_NAME, file_authors=AUTHORS_FILE_NAME) >> \
+    staging_to_tables() >> update_h_and_g_index(folder=DATA_FOLDER, file_main=MAIN_FILE_NAME, file_authors=AUTHORS_FILE_NAME)
 
 dag = StageAndDWH()

@@ -57,7 +57,7 @@ CREATE TABLE paper_fact (
     affiliation_group_key SERIAL UNIQUE, -- could be in a separate dimension like in Kimdall's book but is unneccesary in my opinion
     arxiv_ID VARCHAR(9) NOT NULL UNIQUE, -- NK
     doi VARCHAR(40) NOT NULL UNIQUE,
-    title VARCHAR(200) NOT NULL,
+    title VARCHAR(400) NOT NULL,
     latest_version_nr VARCHAR(3),
     citaton_count INT,
     CONSTRAINT uq_fact_table UNIQUE(year_key, domain_key, type_key, venue_key, author_group_key, affiliation_group_key),

@@ -20,7 +20,7 @@ CREATE TABLE staging_main (
 
     arxiv_ID VARCHAR(9) NOT NULL UNIQUE, -- NK
     doi VARCHAR(40) NOT NULL UNIQUE,
-    title VARCHAR(200) NOT NULL,
+    title VARCHAR(400) NOT NULL,
     latest_version_nr VARCHAR(3),
     citaton_count INT,
 

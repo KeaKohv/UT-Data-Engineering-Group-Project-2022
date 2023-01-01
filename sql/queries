@@ -1,94 +1,123 @@
-'ranking authors in one scientific domain by the nr of papers'
-SELECT z.author_key, z.first_name, z.last_name, z.paper_count,
-DENSE_RANK() OVER(PARTITION BY z.author_key ORDER BY z.paper_count DESC) rank
+--- QUERIES
+
+--- ranking authors in a scientific domain by the total number of papers
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.full_name
 FROM (
-	SELECT *
-	FROM (
-		SELECT x.*, p.domain_key
-		FROM (
-			SELECT g.paper_key, a.*, 
-			COUNT(g.paper_key) OVER(PARTITION BY a.author_key) paper_count
-			FROM authors a
-			JOIN author_group g ON a.author_key=g.author_key) x
-		JOIN paper_fact p ON x.paper_key=p.paper_key) y
-	JOIN domain_ d ON y.domain_key=d.domain_key
-	WHERE d.scientific_domain='Geophysics') z
-ORDER BY rank;
-
-'rank authors by the total number of citations of their papers;'
-SELECT y.*,
-DENSE_RANK() OVER(ORDER BY sum DESC) rank
+	SELECT a.full_name, COUNT(p.title) OVER(PARTITION BY a.author_key) count
+	FROM dim_author a
+	JOIN bridge_author_group aug ON a.author_key=aug.author_key
+	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
+	JOIN dim_domain d ON p.domain_key=d.domain_key
+	WHERE scientific_domain = 'Geophysics') x;
+		
+--- ranking authors in a scientific domain by the total number of citations of their papers
+SELECT DENSE_RANK() OVER(ORDER BY x.sum DESC) ranking, x.full_name
 FROM (
-	SELECT DISTINCT x.author_key, x.first_name, x.last_name,
-	SUM(p.citaton_count) OVER(PARTITION BY x.author_key) sum
-	FROM (
-		SELECT g.paper_key, a.*
-		FROM authors a
-		JOIN author_group g ON a.author_key=g.author_key) x
-	JOIN paper_fact p ON x.paper_key=p.paper_key) y
-ORDER BY rank;
+	SELECT DISTINCT a.full_name, SUM(p.citation_count) OVER(PARTITION BY a.author_key) sum
+	FROM dim_author a
+	JOIN bridge_author_group aug ON a.author_key=aug.author_key
+	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
+	JOIN dim_domain d ON p.domain_key=d.domain_key
+	WHERE scientific_domain = 'Geophysics') x;
+			
+--- ranking authors in a scientific domain by H-index
+SELECT DENSE_RANK() OVER(ORDER BY x.h_index DESC) ranking, x.full_name, x.scientific_domain
+FROM (
+	SELECT a.full_name, a.h_index, d.scientific_domain
+	FROM dim_author a
+	JOIN bridge_author_group aug ON a.author_key=aug.author_key
+	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
+	JOIN dim_domain d ON p.domain_key=d.domain_key
+	WHERE d.scientific_domain = 'Geophysics') x;
 
-'rank authors by H-index'
-SELECT author_key, first_name, last_name, h_index,
-RANK() OVER(ORDER BY h_index DESC) rank
-FROM authors
-ORDER BY rank;
-
-'ranking papers by citation count'
-SELECT paper_key, title, citaton_count,
-RANK() OVER(ORDER BY citaton_count DESC) rank
+--- ranking authors in a scientific domain by G-index
+SELECT DENSE_RANK() OVER(ORDER BY x.g_index DESC) ranking, x.full_name, x.scientific_domain
+FROM (
+	SELECT a.full_name, a.g_index, d.scientific_domain
+	FROM dim_author a
+	JOIN bridge_author_group aug ON a.author_key=aug.author_key
+	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
+	JOIN dim_domain d ON p.domain_key=d.domain_key
+	WHERE d.scientific_domain = 'Geophysics') x;
+	
+--- ranking papers by citation count
+SELECT DENSE_RANK() OVER(ORDER BY citation_count) ranking, title
 FROM paper_fact;
 
-'ranking publication venues by total number of published papers'
-SELECT x.*,
-DENSE_RANK() OVER(ORDER BY paper_count DESC) rank
+--- ranking affiliations by total number of papers from affiliated authors
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.affiliation_name
 FROM (
-	SELECT DISTINCT v.pub_venue,
-	COUNT(p.paper_key) OVER(PARTITION BY v.pub_venue) paper_count
-	FROM paper_fact p
-	JOIN venue v ON p.venue_key=v.venue_key) x
-ORDER BY rank;
+	SELECT af.affiliation_name, COUNT(p.title) OVER(PARTITION BY af.affiliation_key) count
+	FROM dim_affiliation af
+	JOIN bridge_affiliation_group afg ON af.affiliation_key=afg.affiliation_key
+	JOIN paper_fact p ON afg.affiliation_group_key=p.affiliation_group_key) x;
+	
+--- ranking affiliations by number of papers published in the last year by affiliated authors
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.affiliation_name
+FROM (
+	SELECT af.affiliation_name, COUNT(p.title) OVER(PARTITION BY af.affiliation_key) count
+	FROM dim_affiliation af
+	JOIN bridge_affiliation_group afg ON af.affiliation_key=afg.affiliation_key
+	JOIN paper_fact p ON afg.affiliation_group_key=p.affiliation_group_key
+	JOIN dim_year y ON p.year_key=y.year_key
+	WHERE y.publication_year = 2022) x;
 
-'ranking publication venues by total number of paper citations'
-SELECT *,
-DENSE_RANK() OVER(ORDER BY x.sum DESC) rank
+--- ranking affiliations by total number of paper citations from affiliated authors
+SELECT DENSE_RANK() OVER(ORDER BY x.sum) ranking, x.affiliation_name
 FROM (
-	SELECT DISTINCT v.pub_venue,
-	SUM(p.citaton_count) OVER(PARTITION BY v.pub_venue) sum
-	FROM paper_fact p
-	JOIN venue v ON p.venue_key=v.venue_key) x
-ORDER BY rank;
+	SELECT af.affiliation_name, SUM(p.citation_count) OVER(PARTITION BY af.affiliation_key) sum
+	FROM dim_affiliation af
+	JOIN bridge_affiliation_group afg ON af.affiliation_key=afg.affiliation_key
+	JOIN paper_fact p ON afg.affiliation_group_key=p.affiliation_group_key) x;
+	
+--- ranking affiliations by the average number of citations per author
+SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.affiliation_name, x.average
+FROM (
+	SELECT DISTINCT af.affiliation_name, ROUND(AVG(p.citation_count) OVER(PARTITION BY af.affiliation_name)) average
+	FROM dim_affiliation af
+	JOIN bridge_affiliation_group afg ON af.affiliation_key=afg.affiliation_key
+	JOIN paper_fact p ON afg.affiliation_group_key=p.affiliation_group_key) x;
 
-'ranking publication venues by the average number of citations per paper'
-SELECT x.pub_venue, ROUND(avg) avg,
-DENSE_RANK() OVER(ORDER BY x.avg DESC) rank
+--- ranking publication venues by total number of published papers
+SELECT DISTINCT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.pub_venue
 FROM (
-	SELECT DISTINCT v.pub_venue,
-	AVG(p.citaton_count) OVER(PARTITION BY v.pub_venue) avg
-	FROM paper_fact p
-	JOIN venue v ON p.venue_key=v.venue_key) x
-ORDER BY rank;
+	SELECT v.pub_venue, COUNT(p.title) OVER(PARTITION BY v.pub_venue) count
+	FROM dim_venue v
+	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
+	
+--- ranking publication venues by total number of paper citations
+SELECT DENSE_RANK() OVER(ORDER BY x.sum DESC) ranking, x.pub_venue
+FROM (
+	SELECT DISTINCT v.pub_venue, SUM(p.citation_count) OVER(PARTITION BY v.pub_venue) sum
+	FROM dim_venue v
+	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
 
-'ranking publication venues by the number of published optics papers to see what are the top optics publication venues'
-SELECT *,
-DENSE_RANK() OVER(ORDER BY paper_count DESC) rank
+--- ranking publication venues by the average number of citations per paper
+SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.pub_venue
 FROM (
-	SELECT v.pub_venue,
-	COUNT(x.paper_key) OVER(PARTITION BY v.pub_venue) paper_count
-	FROM (
-		SELECT p.paper_key, p.venue_key, d.scientific_domain
-		FROM paper_fact p
-		JOIN domain_ d ON p.domain_key=d.domain_key) x
-	JOIN venue v ON x.venue_key=v.venue_key
-	WHERE x.scientific_domain = 'Optics') y
-ORDER BY rank;
+	SELECT DISTINCT v.pub_venue, ROUND(AVG(p.citation_count) OVER(PARTITION BY v.pub_venue)) average
+	FROM dim_venue v
+	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
 
-'finding years with most published papers'
-SELECT x.publiction_year, x.paper_count,
-DENSE_RANK() OVER(ORDER BY x.paper_count DESC) rank
+--- ranking publication venues by the number of published data science papers to see what are the top data science publication venues
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.pub_venue
 FROM (
-	SELECT p.paper_key, y.publiction_year,
-	COUNT(p.paper_key) OVER(PARTITION BY y.publiction_year) paper_count
-	FROM paper_fact p
-	JOIN year_ y ON p.year_key=y.year_key) x
-ORDER BY rank;
+	SELECT DISTINCT v.pub_venue, COUNT(p.title) OVER(PARTITION BY v.pub_venue) count
+	FROM dim_venue v
+	JOIN paper_fact p ON v.venue_key=p.venue_key
+	JOIN dim_domain d ON p.domain_key=d.domain_key
+	WHERE d.scientific_domain='Data Science') x;
+	
+--- finding years with most published papers
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.publication_year
+FROM (
+	SELECT DISTINCT y.publication_year, COUNT(p.title) OVER(PARTITION BY y.publication_year) count
+	FROM dim_year y
+	JOIN paper_fact p ON y.year_key=p.year_key) x;
+	
+--- histograms the number of papers on a given scientific domain over a given time period (years)
+SELECT y.publication_year, COUNT(p.title) OVER(PARTITION BY y.publication_year) count_papers
+FROM dim_year y
+JOIN paper_fact p ON y.year_key=p.year_key
+JOIN dim_domain d ON p.domain_key=d.domain_key
+WHERE d.scientific_domain = 'Geophysics'; --- query needs to be tested on more data

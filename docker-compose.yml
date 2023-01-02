@@ -35,17 +35,21 @@ x-airflow-common:
 services:
   neo4j:
     container_name: neo4j
-    image: neo4j:3.5.3
+    image: neo4j:5.3.0
     ports:
       - 7474:7474
       - 7473:7473
       - 7687:7687
     environment:
       NEO4J_AUTH: neo4j/password
+      NEO4JLABS_PLUGINS: '["graph-data-science"]'
+      NEO4J_dbms.security.procedures.unrestricted: gds.*
+      NEO4J_dbms.security.procedures.allowlist: gds.*
     volumes:
       - ./neo4j/data:/data
       - ./neo4j/logs:/logs
       - ./neo4j/import:/var/lib/neo4j/import
+      - ./neo4j/conf:/var/lib/neo4j/conf
       - ./neo4j/plugins:/plugins
   postgres:
     container_name: postgres

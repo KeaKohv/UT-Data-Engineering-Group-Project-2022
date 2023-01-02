@@ -11,7 +11,7 @@ from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 
 from transforms import clean_dataframe
-from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME
+from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME, MAIN_FILE_NAME, AUTHORS_FILE_NAME
 
 from enrich import enrich
 
@@ -51,7 +51,6 @@ def row_to_neo4j(r):
     return queries
 
 
-
 def neo4j_query():
     with open(os.path.join(DATA_FOLDER, 'neo4j.cyp'), 'r') as f:
         return ''.join(f.readlines())
@@ -59,7 +58,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='*/5 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -82,6 +81,25 @@ def ApiToDB():
         df = enrich(df)
         df.to_json(os.path.join(folder, output_file))
 
+    @task(task_id = 'prepare_for_staging')
+    def prepare_for_staging(folder, input_file, output_file_main, output_file_authors, **kwargs):
+        df = pd.read_json(os.path.join(folder, input_file))
+
+        authors_df = df[['id','authors_merged']].copy()
+        explded = authors_df.explode("authors_merged")
+        authors_df_normalized = pd.json_normalize(explded['authors_merged'])
+        authors_df_normalized['id'] = explded['id'].tolist()
+        authors_df_normalized = authors_df_normalized.fillna(value="Unknown")
+        authors_df_normalized.replace(to_replace="None", value="Unknown", inplace=True)
+
+        for i, row in authors_df_normalized.iterrows():
+            if type(row['affiliation']) == list:
+                row['affiliation'] = row['affiliation'][0]
+
+        # Creates df_main.csv and df_authors.csv that will be used for data staging and DWH insertion
+        df[['published-year','subject','type','container-title','publisher','id','doi','title','versions','is-referenced-by-count']].to_csv(os.path.join(folder, output_file_main), index = False)
+        authors_df_normalized.to_csv(os.path.join(folder, output_file_authors), index = False)
+
     @task(task_id = 'json_to_neo4j_query')
     def json_to_neo4j_query(folder, input_file, output_file, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
@@ -92,22 +110,9 @@ def ApiToDB():
                 print(q)
                 neo4j_hook.run(q)
 
-
-    @task(task_id='csv_to_db')
-    def csv_to_db(folder, input_file, **kwargs):
-        postgres_hook = PostgresHook(postgres_conn_id="project_pg")
-        conn = postgres_hook.get_conn()
-        cur = conn.cursor()
-        with open('/tmp/data/arxiv.csv', "r") as file:
-            cur.copy_expert(
-                "COPY arxiv FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
-                file,
-            )
-        conn.commit()
-        os.remove(os.path.join(folder, input_file))
-
     fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> \
     enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
+    prepare_for_staging(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file_main=MAIN_FILE_NAME, output_file_authors=AUTHORS_FILE_NAME) >> \
     json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
 
 dag = ApiToDB()

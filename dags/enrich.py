@@ -159,7 +159,7 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
         extra.append(aux)
         time.sleep(0.1)
     dataframe.drop(['doi', 'title'], axis=1, inplace=True)
-    dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra)], axis=1)
+    dataframe = pd.concat([dataframe, pd.DataFrame.from_records(extra, coerce_float=False)], axis=1)
     dataframe = merge_authorlists(dataframe)
     assign_genders(dataframe['authors_merged'])
 

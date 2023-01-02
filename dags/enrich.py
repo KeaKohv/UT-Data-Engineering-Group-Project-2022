@@ -67,6 +67,8 @@ def find_gender(full_name, first_name, last_name):
         r = requests.get(url=url)
         data = r.json()
         gender = data['data']['Final']['gender']
+        print(f'Finding gender for {full_name}, gender is {gender}')
+
         if gender == 'UNKNOWN':
             gender = 'Unknown'
     except:
@@ -114,7 +116,7 @@ def get_names_gender(authors_merged: pd.Series)->pd.Series:
                         author['gender'] = 'Unknown'
 
                 except:
-                    continue
+                    author['full_name'] = name
 
 
             print(author)
@@ -163,7 +165,7 @@ def enrich(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe = merge_authorlists(dataframe)
     assign_genders(dataframe['authors_merged'])
 
-    #get_names_gender(dataframe['authors_merged'])
+    get_names_gender(dataframe['authors_merged'])
 
     return dataframe
 

@@ -92,9 +92,9 @@ def ApiToDB():
         authors_df_normalized = authors_df_normalized.fillna(value="Unknown")
         authors_df_normalized.replace(to_replace="None", value="Unknown", inplace=True)
 
-        for aff in authors_df_normalized['affiliation']:
-            if type(aff) == list:
-                aff = ' '.join(aff)
+        for i, row in authors_df_normalized.iterrows():
+            if type(row['affiliation']) == list:
+                row['affiliation'] = row['affiliation'][0]
 
         # Creates df_main.csv and df_authors.csv that will be used for data staging and DWH insertion
         df[['published-year','subject','type','container-title','publisher','id','doi','title','versions','is-referenced-by-count']].to_csv(os.path.join(folder, output_file_main), index = False)

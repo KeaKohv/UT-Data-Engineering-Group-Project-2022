@@ -22,7 +22,7 @@ CREATE TABLE staging_main (
     doi VARCHAR(40) NOT NULL UNIQUE,
     title VARCHAR(400) NOT NULL,
     latest_version_nr VARCHAR(3),
-    citaton_count INT,
+    citation_count INT,
 
     PRIMARY KEY (staging_main_key)
 );
@@ -34,8 +34,6 @@ CREATE TABLE staging_authors (
     author_group_key INT,
     full_name VARCHAR(100) NOT NULL,
     gender VARCHAR(10) NOT NULL,
-    h_index INT,
-    g_index INT,
     PRIMARY KEY (staging_author_key)
 );
 

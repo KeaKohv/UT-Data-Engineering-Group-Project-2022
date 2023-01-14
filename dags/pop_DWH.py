@@ -13,7 +13,7 @@ from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
    
 @dag(
     dag_id='data_staging_and_DWH_insert',
-    schedule_interval='*/5 * * * *',
+    schedule_interval='*/10 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -39,7 +39,7 @@ def StageAndDWH():
     filepath=MAIN_FILE_NAME,
     fs_conn_id='file_sensor_connection',
     poke_interval=5,
-    timeout=100,
+    timeout=10*60,
     exponential_backoff=True,
     )
 
@@ -48,7 +48,7 @@ def StageAndDWH():
     filepath=AUTHORS_FILE_NAME,
     fs_conn_id='file_sensor_connection',
     poke_interval=5,
-    timeout=100,
+    timeout=10*60,
     exponential_backoff=True,
     )
 
@@ -75,7 +75,7 @@ def StageAndDWH():
         # Insert data into main staging table
 
         sql_statement = """INSERT INTO staging_main
-        (publication_year, scientific_domain, type_name, pub_venue, publisher, arxiv_ID, doi, title, latest_version_nr, citaton_count)
+        (publication_year, scientific_domain, type_name, pub_venue, publisher, arxiv_ID, doi, title, latest_version_nr, citation_count)
         """
 
         for idx, row in df.iterrows():
@@ -93,7 +93,7 @@ def StageAndDWH():
                 , '{row['doi']}' as doi
                 , '{row['title']}' as title
                 , '{row['versions']}' as latest_version_nr
-                , CAST('{row['is-referenced-by-count']}' AS INT) as citaton_count
+                , CAST('{row['is-referenced-by-count']}' AS INT) as citation_count
                 """
     
         cur.execute(sql_statement)
@@ -226,7 +226,7 @@ def StageAndDWH():
                                                    , doi
                                                    , title
                                                    , latest_version_nr
-                                                   , citaton_count)
+                                                   , citation_count)
                            SELECT publication_year_key
                                   , scientific_domain_key
                                   , type_key
@@ -235,7 +235,7 @@ def StageAndDWH():
                                   , doi
                                   , title
                                   , latest_version_nr
-                                  , citaton_count
+                                  , citation_count
                                   FROM staging_main
                            ON CONFLICT DO NOTHING;
 
@@ -282,7 +282,7 @@ def StageAndDWH():
         full_names = [r[0] for r in cur.fetchall()]
 
         for name in full_names:
-            sql_statement = f"""SELECT paper_fact.citaton_count FROM paper_fact
+            sql_statement = f"""SELECT paper_fact.citation_count FROM paper_fact
                                WHERE author_group_key IN (
                                 SELECT author_group_key FROM bridge_author_group
                                 WHERE author_key IN (

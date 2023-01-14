@@ -12,8 +12,8 @@ from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
    
    
 @dag(
-    dag_id='data_staging_and_DWH_insert',
-    schedule_interval='*/10 * * * *',
+    dag_id='DWH_staging_and_insert',
+    schedule_interval='*/20 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -22,24 +22,12 @@ from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
 )
 def StageAndDWH():
 
-    # Wait for the tables DAG to finish successfully - ei tööta miskipärast.
-    # wait_for_create_tables = ExternalTaskSensor(
-    #     task_id="wait_for_create_tables",
-    #     external_dag_id="create_tables",
-    #     external_task_id = "staging_tables_task",
-    #     poke_interval=3,
-    #     timeout=180,
-    #     soft_fail=False,
-    #     retries=4,
-    #     check_existence = True,
-    # )
-
     waiting_for_main_csv = FileSensor(
     task_id='waiting_for_main_csv',
     filepath=MAIN_FILE_NAME,
     fs_conn_id='file_sensor_connection',
     poke_interval=5,
-    timeout=10*60,
+    timeout=30*60,
     exponential_backoff=True,
     )
 
@@ -48,7 +36,7 @@ def StageAndDWH():
     filepath=AUTHORS_FILE_NAME,
     fs_conn_id='file_sensor_connection',
     poke_interval=5,
-    timeout=10*60,
+    timeout=60,
     exponential_backoff=True,
     )
 

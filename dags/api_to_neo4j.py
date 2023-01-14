@@ -57,8 +57,8 @@ def neo4j_query():
 
 
 @dag(
-    dag_id='api_to_db',
-    schedule_interval='*/10 * * * *',
+    dag_id='api_to_neo4j',
+    schedule_interval='*/20 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -90,6 +90,7 @@ def ApiToDB():
     def prepare_for_staging(folder, input_file, output_file_main, output_file_authors, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
         df = df.replace("'", "\'")
+        df['published-year'] = df['published-year'].str.split('.').str[0]
 
         authors_df = df[['id','authors_merged']].copy()
         explded = authors_df.explode("authors_merged")

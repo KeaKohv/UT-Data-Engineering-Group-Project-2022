@@ -1,11 +1,10 @@
-from typing import Tuple
-
 import pandas as pd
 import time
 import numpy as np
 import requests
 from scholarly import scholarly
 from habanero import Crossref
+from typing import Tuple
 
 class CrossRefFieldExtractor:
     fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published', 'reference']
@@ -66,17 +65,9 @@ def find_gender(full_name, first_name, last_name):
 
     try:
         url = f'https://innovaapi.aminer.cn/tools/v1/predict/gender?name={first_name}+{last_name}&org='
-        # r = requests.get(url=url)
-        # data = r.json()
-        # gender = data['data']['Final']['gender']
-        gender_number = sum(first_name.encode('utf8')) % 5
-        if gender_number == 0:
-            gender = 'Unknown'
-        elif gender_number & 1:
-            gender = 'Female'
-        else:
-            gender =  'Male'
-
+        r = requests.get(url=url)
+        data = r.json()
+        gender = data['data']['Final']['gender']
         print(f'Finding gender for {full_name}, gender is {gender}')
 
         if gender == 'UNKNOWN':
@@ -92,7 +83,9 @@ def assign_genders(authors_merged: pd.Series)->pd.Series:
         for author in authorlist:
             author['full_name'] = process_names([str(author['family']), str(author['given'])])
             author['gender'] = "Unknown"
-            author['gender'] = find_gender(author['full_name'], str(author['given']), str(author['family']))
+            if str.isalnum(str(author['given'])) == True:
+                 # If scholarly request is not needed, find gender
+                author['gender'] = find_gender(author['full_name'], str(author['given']), str(author['family']))
 
 
 
@@ -139,6 +132,7 @@ class ReferenceInfo:
                 dois.append(r['DOI'])
         return dois
 
+ri = ReferenceInfo()
 def process_crossref_work(authors=None, doi=None, title=None):
     extract = CrossRefFieldExtractor()
     cr = Crossref(mailto='joosephook@gmail.com')
@@ -191,7 +185,7 @@ def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     enriched = enriched.loc[succeeded]
     enriched = merge_authorlists(enriched)
     assign_genders(enriched['authors_merged'])
-    # get_names_gender(enriched['authors_merged'])
+    get_names_gender(dataframe['authors_merged'])
 
     return enriched, dataframe.loc[failed]
 
@@ -218,9 +212,6 @@ def merge_author_names(old, new):
         return dict(given=given, family=family)
 
 def merge_author_affiliations(old, new):
-    print('old aff', old)
-    print('new aff', new)
-
     if len(old['affiliation']) > 0:
         old = old['affiliation'].pop(0).get('name')
     else:
@@ -230,9 +221,6 @@ def merge_author_affiliations(old, new):
         new = new['affiliation'].pop(0).get('name')
     else:
         new = ''
-
-    print('old aff', old)
-    print('new aff', new)
 
     if len(old) == 0 and len(new) == 0:
         return dict(affiliation=None)

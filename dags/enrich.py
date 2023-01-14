@@ -185,7 +185,7 @@ def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     enriched = enriched.loc[succeeded]
     enriched = merge_authorlists(enriched)
     assign_genders(enriched['authors_merged'])
-    get_names_gender(dataframe['authors_merged'])
+    get_names_gender(enriched['authors_merged'])
 
     return enriched, dataframe.loc[failed]
 

@@ -78,8 +78,13 @@ def ApiToDB():
     @task(task_id = 'enrich_data')
     def enrich_data(folder, input_file, output_file, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
-        df = enrich(df)
-        df.to_json(os.path.join(folder, output_file))
+        success, failure = enrich(df)
+        success.to_json(os.path.join(folder, output_file))
+        with open(os.path.join(folder, 'failures.json'), 'a') as f:
+            if len(failure):
+                string = failure.to_json(None)
+                f.writelines(string)
+                f.write('\n')
 
     @task(task_id = 'prepare_for_staging')
     def prepare_for_staging(folder, input_file, output_file_main, output_file_authors, **kwargs):

@@ -77,7 +77,7 @@ def neo4j_query():
 
 
 @dag(
-    dag_id='api_to_db',
+    dag_id='api_to_neo4j',
     schedule_interval='*/4 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,

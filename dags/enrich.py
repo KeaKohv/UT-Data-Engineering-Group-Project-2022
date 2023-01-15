@@ -6,6 +6,8 @@ from scholarly import scholarly
 from habanero import Crossref
 from typing import Tuple
 
+Crossref(mailto = "kohv.kea@gmail.com")
+
 class CrossRefFieldExtractor:
     fields = ['DOI', 'title', 'author', 'type', 'publisher', 'is-referenced-by-count', 'container-title', 'subject', 'published', 'reference']
 

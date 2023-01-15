@@ -18,8 +18,8 @@ CREATE TABLE staging_main (
     publisher VARCHAR(200) NOT NULL,
     venue_key INT,
 
-    arxiv_ID VARCHAR(9) NOT NULL UNIQUE, -- NK
-    doi VARCHAR(40) NOT NULL UNIQUE,
+    arxiv_ID VARCHAR(10) NOT NULL UNIQUE, -- NK
+    doi VARCHAR(60) NOT NULL UNIQUE,
     title VARCHAR(400) NOT NULL,
     latest_version_nr VARCHAR(3),
     citation_count INT,
@@ -29,7 +29,7 @@ CREATE TABLE staging_main (
 
 CREATE TABLE staging_authors (
     staging_author_key INT GENERATED ALWAYS AS IDENTITY,
-    arxiv_ID VARCHAR(9) NOT NULL,
+    arxiv_ID VARCHAR(10) NOT NULL,
     author_key INT,
     author_group_key INT,
     full_name VARCHAR(100) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE staging_authors (
 
 CREATE TABLE staging_affiliations (
     staging_affiliation_key INT GENERATED ALWAYS AS IDENTITY,
-    arxiv_ID VARCHAR(9) NOT NULL,
+    arxiv_ID VARCHAR(10) NOT NULL,
     affiliation_key INT,
     affiliation_group_key INT,
     affiliation_name VARCHAR(400) NOT NULL,

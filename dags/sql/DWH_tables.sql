@@ -30,7 +30,7 @@ CREATE TABLE dim_venue (
     venue_key INT GENERATED ALWAYS AS IDENTITY UNIQUE,
     pub_venue VARCHAR(300) NOT NULL UNIQUE,
     publisher VARCHAR(300) NOT NULL,
-    UNIQUE(product_id, category_id),
+    UNIQUE(pub_venue, publisher),
     PRIMARY KEY (venue_key)
 );
 

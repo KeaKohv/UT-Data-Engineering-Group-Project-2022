@@ -8,7 +8,7 @@ FROM (
 	JOIN bridge_author_group aug ON a.author_key=aug.author_key
 	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
 	JOIN dim_domain d ON p.domain_key=d.domain_key
-	WHERE scientific_domain LIKE '%Physics%') x;
+	WHERE scientific_domain LIKE '%physics%') x;
 		
 --- ranking authors in a scientific domain by the total number of citations of their papers
 SELECT DENSE_RANK() OVER(ORDER BY x.sum DESC) ranking, x.full_name
@@ -18,7 +18,7 @@ FROM (
 	JOIN bridge_author_group aug ON a.author_key=aug.author_key
 	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
 	JOIN dim_domain d ON p.domain_key=d.domain_key
-	WHERE scientific_domain LIKE '%Physics%') x;
+	WHERE scientific_domain LIKE '%physics%') x;
 			
 --- ranking authors in a scientific domain by H-index
 SELECT DENSE_RANK() OVER(ORDER BY x.h_index DESC) ranking, x.h_index, x.full_name, x.scientific_domain

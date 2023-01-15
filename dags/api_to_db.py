@@ -24,14 +24,34 @@ def row_to_neo4j(r):
     piece_properties = "{title: \"" + title + "\""
     if not np.isnan(r['published-year']):
         piece_properties += f""", year: {int(r['published-year'])}"""
+
+    piece_properties += f", subject: \"{r['subject']}\""
     piece_properties += "}"
     piece = f"""MERGE (:Piece {piece_properties})"""
     queries.append(piece)
+
+    venue = f"{{title: \"{r['container-title']}\", publisher: \"{r['publisher']}\", type: \"{r['type']}\"}}"
+
+    q = f"MERGE (:Venue {venue})"
+    queries.append(q)
+
+    q = f"MATCH (p:Piece {piece_properties}) MERGE (v: Venue {venue})-[:PUBLISHES]->(p)"
+    queries.append(q)
+
 
     q = f"MATCH (p:Piece {piece_properties}) MERGE (a: Author "
     for author in r['authors_merged']:
         author_properties = f'{{ family: "{author["family"]}", given: "{author["given"]}" }}'
         queries.append(q + f'{author_properties})-[:AUTHORS]->(p);')
+
+        if author["affiliation"] is not None and len(author["affiliation"]):
+            print(author["affiliation"])
+            name = author["affiliation"]
+            institution = f'{{name: \"{name}\" }}'
+            aff = f"MERGE (:Institution {institution} )"
+            queries.append(aff)
+            aff = f"MATCH (a:Author {author_properties}) MATCH (i:Institution {institution}) MATCH (p:Piece {piece_properties}) WHERE (a)-[:AUTHORS]->(p) MERGE (a)-[:AFFILIATES]->(i)"
+            queries.append(aff)
 
     if r['reference'] is None:
         return queries
@@ -58,7 +78,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_db',
-    schedule_interval='*/10 * * * *',
+    schedule_interval='*/4 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],

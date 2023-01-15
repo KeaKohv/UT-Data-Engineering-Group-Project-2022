@@ -85,7 +85,7 @@ def get_author(authorship):
 class OpenAlexFieldExtractor:
     fields = ['subject', 'published', 'reference']
 
-    def __call__(self, work, references=True):
+    def __call__(self, work):
         published_year, published_month, _ = work["publication_date"].split('-')
         title = work.get("title")
         doi = work.get("doi")
@@ -104,13 +104,7 @@ class OpenAlexFieldExtractor:
         else:
             subject = max(level_1_concepts, key=lambda x: x["score"])["display_name"]
 
-        if references:
-            reference = [
-                self.__call__(w, references=False)
-                for w in get_references(work)
-            ]
-        else:
-            reference = []
+        reference = []
 
         return {
             'published-year':published_year,
@@ -139,6 +133,7 @@ def process_openalex_work(authors=None, doi=None, title=None):
         work = extract(result)
         print('matched: ', result["title"])
         print('old authors:', authors)
+        work['reference'] = list(map(extract, work['reference']))
         print('new authors:', [a["family"] for a in work['author']])
         print(work)
         print()

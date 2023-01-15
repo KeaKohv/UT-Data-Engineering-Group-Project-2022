@@ -13,7 +13,7 @@ from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
    
 @dag(
     dag_id='DWH_staging_and_insert',
-    schedule_interval='*/20 * * * *',
+    schedule_interval='*/4 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -54,14 +54,17 @@ def StageAndDWH():
         cur = conn.cursor()
         cur.execute(sql_statement)
         conn.commit()
-        
-        # Mock data
-        #df = pd.read_csv(os.path.join(folder, 'mock_main.csv'))
 
+        # To ensure that insert into Postgres tables does not fail
         df = pd.read_csv(os.path.join(folder, file_main))
+        df.replace(to_replace="'", value="''", inplace=True, regex = True)
+        df.replace(to_replace='"', value='""', inplace=True, regex = True)
+        df.replace(to_replace="NaN", value="Unknown", inplace=True)
+        df = df.fillna(value="Unknown")
+        df['published-year'] = [str(year).split('.',1)[0] for year in df['published-year']]
+        df['published-year'] = [year.replace('Unknown','0') for year in df['published-year']]
 
         # Insert data into main staging table
-
         sql_statement = """INSERT INTO staging_main
         (publication_year, scientific_domain, type_name, pub_venue, publisher, arxiv_ID, doi, title, latest_version_nr, citation_count)
         """
@@ -86,10 +89,12 @@ def StageAndDWH():
     
         cur.execute(sql_statement)
 
-        # Mock data
-        #authors_df_normalized = pd.read_csv((os.path.join(folder, 'mock_authors.csv')))
-
+        # To ensure that insert into Postgres tables does not fail
         authors_df_normalized = pd.read_csv(os.path.join(folder, file_authors))
+        authors_df_normalized.replace(to_replace="'", value="''", inplace=True, regex = True)
+        authors_df_normalized.replace(to_replace='"', value='""', inplace=True, regex = True)
+        authors_df_normalized.replace(to_replace="NaN", value="Unknown", inplace=True)
+        authors_df_normalized = authors_df_normalized.fillna(value="Unknown")
 
         # Insert data into authors staging table
 
@@ -268,6 +273,8 @@ def StageAndDWH():
         sql_statement = """SELECT full_name FROM staging_authors;"""
         cur.execute(sql_statement)
         full_names = [r[0] for r in cur.fetchall()]
+
+        full_names = [name.replace("'","''") for name in full_names]
 
         for name in full_names:
             sql_statement = f"""SELECT paper_fact.citation_count FROM paper_fact

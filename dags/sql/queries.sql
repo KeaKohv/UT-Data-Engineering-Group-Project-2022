@@ -3,12 +3,12 @@
 --- ranking authors in a scientific domain by the total number of papers
 SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.full_name
 FROM (
-	SELECT a.full_name, COUNT(p.title) OVER(PARTITION BY a.author_key) count
+	SELECT a.full_name, COUNT(p.title) OVER(PARTITION BY a.full_name) count
 	FROM dim_author a
 	JOIN bridge_author_group aug ON a.author_key=aug.author_key
 	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
 	JOIN dim_domain d ON p.domain_key=d.domain_key
-	WHERE scientific_domain LIKE '%Physics%') x;
+	WHERE scientific_domain LIKE '%physics%') x;
 		
 --- ranking authors in a scientific domain by the total number of citations of their papers
 SELECT DENSE_RANK() OVER(ORDER BY x.sum DESC) ranking, x.full_name
@@ -18,7 +18,7 @@ FROM (
 	JOIN bridge_author_group aug ON a.author_key=aug.author_key
 	JOIN paper_fact p ON aug.author_group_key=p.author_group_key
 	JOIN dim_domain d ON p.domain_key=d.domain_key
-	WHERE scientific_domain LIKE '%Physics%') x;
+	WHERE scientific_domain LIKE '%physics%') x;
 			
 --- ranking authors in a scientific domain by H-index
 SELECT DENSE_RANK() OVER(ORDER BY x.h_index DESC) ranking, x.h_index, x.full_name, x.scientific_domain
@@ -97,31 +97,33 @@ FROM (
 	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
 
 --- ranking publication venues by the average number of citations per paper
-SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.pub_venue
+SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.average, x.pub_venue
 FROM (
 	SELECT DISTINCT v.pub_venue, ROUND(AVG(p.citation_count) OVER(PARTITION BY v.pub_venue)) average
 	FROM dim_venue v
 	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
 
---- ranking publication venues by the number of published data science papers to see what are the top data science publication venues
-SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.pub_venue
+--- ranking publication venues by the number of published math papers to see what are the top math publication venues
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.count, x.pub_venue
 FROM (
 	SELECT DISTINCT v.pub_venue, COUNT(p.title) OVER(PARTITION BY v.pub_venue) count
 	FROM dim_venue v
 	JOIN paper_fact p ON v.venue_key=p.venue_key
 	JOIN dim_domain d ON p.domain_key=d.domain_key
-	WHERE d.scientific_domain='Data Science') x;
+	WHERE d.scientific_domain LIKE '%math%') x;
 	
 --- finding years with most published papers
-SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.publication_year
+SELECT DENSE_RANK() OVER(ORDER BY x.count DESC) ranking, x.count, x.publication_year
 FROM (
 	SELECT DISTINCT y.publication_year, COUNT(p.title) OVER(PARTITION BY y.publication_year) count
 	FROM dim_year y
 	JOIN paper_fact p ON y.year_key=p.year_key) x;
-	
+
 --- histograms the number of papers on a given scientific domain over a given time period (years)
-SELECT y.publication_year, COUNT(p.title) OVER(PARTITION BY y.publication_year) count_papers
+SELECT DISTINCT y.publication_year, COUNT(p.title) OVER(PARTITION BY y.publication_year) count_papers
 FROM dim_year y
 JOIN paper_fact p ON y.year_key=p.year_key
 JOIN dim_domain d ON p.domain_key=d.domain_key
-WHERE d.scientific_domain = 'Geophysics'; --- query needs to be tested on more data
+WHERE d.scientific_domain LIKE '%math%' AND
+y.publication_year BETWEEN 2010 AND 2022
+ORDER BY y.publication_year ASC;

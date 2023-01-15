@@ -17,8 +17,6 @@ def remove_withdrawn_articles(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def remove_duplicates(dataframe: pd.DataFrame) -> pd.DataFrame:
-    #df = df.sort_values(by=['doi','update_date']).drop_duplicates(subset=(['title','authors']), keep='last')
-    # Praegune vist ei arvesta sellega, et doi-ga recordit eelistada?
     titles: pd.Series = dataframe['title'].apply(normalise) + dataframe['authors'].apply(normalise)
     return dataframe.loc[~titles.duplicated()]
 

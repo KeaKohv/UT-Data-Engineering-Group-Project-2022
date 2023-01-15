@@ -53,10 +53,10 @@ CREATE TABLE paper_fact (
     domain_key INT NOT NULL,
     type_key INT NOT NULL,
     venue_key INT NOT NULL,
-    author_group_key SERIAL UNIQUE, -- could be in a separate dimension like in Kimdall's book but it is unneccesary in my opinion
-    affiliation_group_key SERIAL UNIQUE, -- could be in a separate dimension like in Kimdall's book but is unneccesary in my opinion
-    arxiv_ID VARCHAR(9) NOT NULL UNIQUE, -- NK
-    doi VARCHAR(40) NOT NULL UNIQUE,
+    author_group_key SERIAL UNIQUE,
+    affiliation_group_key SERIAL UNIQUE,
+    arxiv_ID VARCHAR(10) NOT NULL UNIQUE, -- NK
+    doi VARCHAR(60) NOT NULL UNIQUE,
     title VARCHAR(400) NOT NULL,
     latest_version_nr VARCHAR(3),
     citation_count INT,

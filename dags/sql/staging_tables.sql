@@ -20,7 +20,7 @@ CREATE TABLE staging_main (
 
     arxiv_ID VARCHAR(100) NOT NULL UNIQUE, -- NK
     doi VARCHAR(100) NOT NULL UNIQUE,
-    title VARCHAR(500) NOT NULL,
+    title VARCHAR(1000) NOT NULL,
     latest_version_nr VARCHAR(50),
     citation_count INT,
 
@@ -42,6 +42,6 @@ CREATE TABLE staging_affiliations (
     arxiv_ID VARCHAR(100) NOT NULL,
     affiliation_key INT,
     affiliation_group_key INT,
-    affiliation_name VARCHAR(500) NOT NULL,
+    affiliation_name VARCHAR(1000) NOT NULL,
     PRIMARY KEY (staging_affiliation_key)
 );

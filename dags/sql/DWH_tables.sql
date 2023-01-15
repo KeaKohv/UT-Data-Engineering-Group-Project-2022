@@ -44,7 +44,7 @@ CREATE TABLE dim_author (
 
 CREATE TABLE dim_affiliation (
     affiliation_key INT GENERATED ALWAYS AS IDENTITY UNIQUE,
-    affiliation_name VARCHAR(500) NOT NULL,
+    affiliation_name VARCHAR(1000) NOT NULL,
     PRIMARY KEY (affiliation_key)
 );
 
@@ -57,7 +57,7 @@ CREATE TABLE paper_fact (
     affiliation_group_key SERIAL UNIQUE,
     arxiv_ID VARCHAR(100) NOT NULL UNIQUE, -- NK
     doi VARCHAR(100) NOT NULL UNIQUE,
-    title VARCHAR(500) NOT NULL,
+    title VARCHAR(1000) NOT NULL,
     latest_version_nr VARCHAR(50),
     citation_count INT,
     CONSTRAINT uq_fact_table UNIQUE(year_key, domain_key, type_key, venue_key, author_group_key, affiliation_group_key),

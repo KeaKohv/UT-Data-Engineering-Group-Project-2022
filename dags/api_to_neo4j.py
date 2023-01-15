@@ -148,8 +148,9 @@ def ApiToDB():
                 neo4j_hook.run(q)
 
     fetch_and_clean(url=API_URL, params={}, folder=DATA_FOLDER, file=ARXIV_FILE_NAME) >> \
-    enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> \
-    prepare_for_staging(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file_main=MAIN_FILE_NAME, output_file_authors=AUTHORS_FILE_NAME) >> \
-    json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
+    enrich_data(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME) >> [
+        prepare_for_staging(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file_main=MAIN_FILE_NAME, output_file_authors=AUTHORS_FILE_NAME),
+        json_to_neo4j_query(folder=DATA_FOLDER, input_file=ARXIV_FILE_NAME, output_file=ARXIV_FILE_NAME)
+    ]
 
 dag = ApiToDB()

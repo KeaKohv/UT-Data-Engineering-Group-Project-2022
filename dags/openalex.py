@@ -10,9 +10,9 @@ def clean_title(title: str):
 
 def search_by_title(title, doi=None):
     if doi is not None:
-        return requests.get('https://api.openalex.org/works', {"filter":f"doi:https://doi.org/{doi}"})
+        return requests.get('https://api.openalex.org/works', {"mailto":"joosephook@gmail.com", "filter":f"doi:https://doi.org/{doi}"})
 
-    return requests.get('https://api.openalex.org/works', {"filter":f"title.search:{title}"})
+    return requests.get('https://api.openalex.org/works', {"mailto":"joosephook@gmail.com", "filter":f"title.search:{title}"})
 
 def search_by_doi(doi):
     return requests.get(f'https://api.openalex.org/works/{doi}')
@@ -26,7 +26,7 @@ def search_by_alex_ids(work_alex_ids):
 
     responses = None
     for q in queries:
-        response = requests.get('https://api.openalex.org/works', {"filter":f"ids.openalex:{q}"})
+        response = requests.get('https://api.openalex.org/works', {"mailto":"joosephook@gmail.com", "filter":f"ids.openalex:{q}"})
         if responses is None:
             responses = response.json()
         else:
@@ -39,7 +39,7 @@ def search_by_alex_ids(work_alex_ids):
 
 def search_by_orcid(orcid):
     # https: // api.openalex.org / authors / A2208157607
-    return requests.get(f'https://api.openalex.org/authors/{orcid}')
+    return requests.get(f'https://api.openalex.org/authors/{orcid}', {"mailto":"joosephook@gmail.com", })
 
 def search_by_orcids(orcids):
     queries = [
@@ -49,7 +49,7 @@ def search_by_orcids(orcids):
 
     responses = None
     for q in queries:
-        response = requests.get('https://api.openalex.org/authors', {"filter":f"ids.orcid:{q}"})
+        response = requests.get('https://api.openalex.org/authors', {"mailto":"joosephook@gmail.com", "filter":f"ids.orcid:{q}"})
         if responses is None:
             responses = response.json()
         else:

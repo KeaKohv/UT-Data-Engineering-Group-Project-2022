@@ -84,3 +84,4 @@ CREATE TABLE bridge_affiliation_group (
 
 -- year dimension data
 INSERT INTO dim_year(publication_year) VALUES (generate_series(1980,2030));
+INSERT INTO dim_year(publication_year) VALUES (0); -- For unknown years

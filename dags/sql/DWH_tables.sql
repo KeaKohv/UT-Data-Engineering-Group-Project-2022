@@ -28,15 +28,15 @@ CREATE TABLE dim_type (
 
 CREATE TABLE dim_venue (
     venue_key INT GENERATED ALWAYS AS IDENTITY UNIQUE,
-    pub_venue VARCHAR(100) NOT NULL UNIQUE,
-    publisher VARCHAR(200) NOT NULL,
+    pub_venue VARCHAR(400) NOT NULL UNIQUE,
+    publisher VARCHAR(400) NOT NULL,
     PRIMARY KEY (venue_key)
 );
 
 CREATE TABLE dim_author (
     author_key INT GENERATED ALWAYS AS IDENTITY UNIQUE,
-    full_name VARCHAR(100) NOT NULL,
-    gender VARCHAR(10) NOT NULL,
+    full_name VARCHAR(300) NOT NULL,
+    gender VARCHAR(20) NOT NULL,
     h_index INT NOT NULL DEFAULT 0,
     g_index INT  NOT NULL DEFAULT 0,
     PRIMARY KEY (author_key)
@@ -55,9 +55,9 @@ CREATE TABLE paper_fact (
     venue_key INT NOT NULL,
     author_group_key SERIAL UNIQUE,
     affiliation_group_key SERIAL UNIQUE,
-    arxiv_ID VARCHAR(10) NOT NULL UNIQUE, -- NK
+    arxiv_ID VARCHAR(20) NOT NULL UNIQUE, -- NK
     doi VARCHAR(60) NOT NULL UNIQUE,
-    title VARCHAR(400) NOT NULL,
+    title VARCHAR(1000) NOT NULL,
     latest_version_nr VARCHAR(3),
     citation_count INT,
     CONSTRAINT uq_fact_table UNIQUE(year_key, domain_key, type_key, venue_key, author_group_key, affiliation_group_key),

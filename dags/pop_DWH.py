@@ -58,11 +58,11 @@ def StageAndDWH():
         # To ensure that insert into Postgres tables does not fail
         df = pd.read_csv(os.path.join(folder, file_main))
         df.replace(to_replace="'", value="''", inplace=True, regex = True)
-        df.replace(to_replace="$", value="$$", inplace=True, regex = True)
         df.replace(to_replace='"', value='""', inplace=True, regex = True)
         df.replace(to_replace="NaN", value="Unknown", inplace=True)
         df = df.fillna(value="Unknown")
         df['published-year'] = [str(year).split('.',1)[0] for year in df['published-year']]
+        df['published-year'] = [year.replace('Unknown','0') for year in df['published-year']]
 
         # Insert data into main staging table
         sql_statement = """INSERT INTO staging_main
@@ -92,10 +92,9 @@ def StageAndDWH():
         # To ensure that insert into Postgres tables does not fail
         authors_df_normalized = pd.read_csv(os.path.join(folder, file_authors))
         authors_df_normalized.replace(to_replace="'", value="''", inplace=True, regex = True)
+        authors_df_normalized.replace(to_replace='"', value='""', inplace=True, regex = True)
         authors_df_normalized.replace(to_replace="NaN", value="Unknown", inplace=True)
         authors_df_normalized = authors_df_normalized.fillna(value="Unknown")
-        #authors_df_normalized.replace(to_replace="[", value="", inplace=True, regex = True)
-        #authors_df_normalized.replace(to_replace="]", value="", inplace=True, regex = True)
 
         # Insert data into authors staging table
 

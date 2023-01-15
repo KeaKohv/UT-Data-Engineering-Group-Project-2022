@@ -19,7 +19,6 @@ class CrossRefFieldExtractor:
                 data[field.lower()] = None
                 continue
 
-
             if field in ['container-title', 'title', 'subject']:
                 try:
                     data[field.lower()] = response.get(field)[0]
@@ -41,43 +40,6 @@ class CrossRefFieldExtractor:
                 data[field.lower()] = response.get(field)
         return data
 
-# def process_names(nameslist):
-#     '''
-#     Define names for querying scholarly. Search won't work if name contains dots.
-#     '''
-#     names = nameslist[::-1]
-#     *first_names, last_name = names
-
-#     initial_or_first_name = ' '.join(first_names).split(' ')[0]
-#     initial_or_first_name = ''.join(filter(str.isalnum, initial_or_first_name))
-#     fullname = initial_or_first_name + ' ' + last_name
-#     return fullname
-
-
-# def find_gender(full_name, first_name, last_name):
-#     '''
-#     Query AMiner Gender API for author's gender
-#     '''
-#     # If arxiv dataset had the author's first_name (not initial), us that for querying
-#     if str.isalnum(first_name) == False:
-#         if full_name.count(" ") == 1:
-#             first_name, last_name = full_name.split(' ')
-#         elif full_name.count(" ") == 2:
-#             # For finding names where the middle name is included as an inital
-#             first_name, middle, last_name = full_name.split(' ')
-
-#     try:
-#         url = f'https://innovaapi.aminer.cn/tools/v1/predict/gender?name={first_name}+{last_name}&org='
-#         r = requests.get(url=url)
-#         data = r.json()
-#         gender = data['data']['Final']['gender']
-#         print(f'Finding gender for {full_name}, gender is {gender}')
-
-#         if gender == 'UNKNOWN':
-#             gender = 'Unknown'
-#     except:
-#         gender = 'Unknown'
-#     return gender
 
 def assign_genders(authors: pd.Series)->pd.Series:
 
@@ -90,7 +52,6 @@ def assign_genders(authors: pd.Series)->pd.Series:
                 name = name.split(' ')[0]
 
             try:
-
                 gender = d.get_gender(name)
 
                 if gender in ['male','female']:
@@ -108,65 +69,6 @@ def assign_genders(authors: pd.Series)->pd.Series:
             author['full_name'] = author['given'] + " " + author['family']
 
             print(f"Author name is {author['full_name']}, assigned gender is {author['gender']}")
-
-
-
-# def assign_genders(authors_merged: pd.Series)->pd.Series:
-#     for authorlist in authors_merged:
-#         for author in authorlist:
-#             author['full_name'] = process_names([str(author['family']), str(author['given'])])
-
-#             author['gender'] = "Unknown"
-#             if str.isalnum(str(author['given'])) == True:
-#                  # If scholarly request is not needed, find gender
-#                 author['gender'] = find_gender(author['full_name'], str(author['given']), str(author['family']))
-
-
-
-# def mock_assign_genders(authors_merged: pd.Series)->pd.Series:
-#     for authorlist in authors_merged:
-#         for author in authorlist:
-#             gender_number = sum(author['given'].encode('utf8')) % 5
-#             if gender_number == 0:
-#                 gender = 'Unknown'
-#             elif gender_number & 1:
-#                 gender = 'Female'
-#             else:
-#                 gender =  'Male'
-#             author['gender'] = gender
-
-# def get_names_gender(authors_merged: pd.Series)->pd.Series:
-#     '''
-#     Takes authors from the 'authors_merged' field and
-#     adds full name and gender if author only has  initial(s)
-#     '''
-#     for authorlist in authors_merged:
-#         for author in authorlist:
-
-#             # If the author's given name contains characters that are not alphanumeric
-#             # (e.g. dot, indicating that only the initial is known), search Google Scholar for the full name of the author
-#             if str.isalnum(str(author['given'])) == False:
-#                 name = process_names([str(author['family']), str(author['given'])])
-#                 print(f'Full name search for {name}')
-#                 try:
-#                     search_query = scholarly.search_author(name)
-#                     first_author_result = next(search_query)
-#                     author['full_name'] = first_author_result['name']
-
-#                     try:
-#                         gender = find_gender(author['full_name'],str(author['given']), str(author['family']))
-#                         if gender != 'UNKNOWN':
-#                             author['gender'] = gender
-#                         else:
-#                             author['gender'] = 'Unknown'
-#                     except:
-#                         author['gender'] = 'Unknown'
-
-#                 except:
-#                     author['full_name'] = name
-
-
-#            print(author)
 
 
 class ReferenceInfo:
@@ -231,9 +133,6 @@ def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     enriched = enriched.loc[succeeded]
     enriched = merge_authorlists(enriched)
     assign_genders(enriched['authors_merged'])
-    # assign_genders(enriched['authors_merged'])
-    # get_names_gender(enriched['authors_merged'])
-    # mock_assign_genders(enriched['authors_merged'])
     enriched = enriched.drop(['authors_parsed', 'author'], axis=1)
 
     return enriched, dataframe.loc[failed]

@@ -109,7 +109,6 @@ def ApiToDB():
     @task(task_id = 'prepare_for_staging')
     def prepare_for_staging(folder, input_file, output_file_main, output_file_authors, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
-        df = df.replace("'", "\'")
 
         authors_df = df[['id','authors_merged']].copy()
         explded = authors_df.explode("authors_merged")

@@ -13,7 +13,7 @@ from conf import DEFAULT_ARGS, DATA_FOLDER, MAIN_FILE_NAME, AUTHORS_FILE_NAME
    
 @dag(
     dag_id='DWH_staging_and_insert',
-    schedule_interval='*/20 * * * *',
+    schedule_interval='*/4 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -59,6 +59,10 @@ def StageAndDWH():
         #df = pd.read_csv(os.path.join(folder, 'mock_main.csv'))
 
         df = pd.read_csv(os.path.join(folder, file_main))
+        df.replace(to_replace="'", value="\\'", inplace=True)
+        df.replace(to_replace="$", value="\\$", inplace=True)
+        df.replace(to_replace='"', value='\\"', inplace=True)
+        df['published-year'] = [str(year).split('.',1)[0] for year in df['published-year']]
 
         # Insert data into main staging table
 
@@ -90,6 +94,9 @@ def StageAndDWH():
         #authors_df_normalized = pd.read_csv((os.path.join(folder, 'mock_authors.csv')))
 
         authors_df_normalized = pd.read_csv(os.path.join(folder, file_authors))
+        authors_df_normalized.replace(to_replace="'", value="\\'", inplace=True)
+        authors_df_normalized.replace(to_replace="[", value="", inplace=True)
+        authors_df_normalized.replace(to_replace="]", value="", inplace=True)
 
         # Insert data into authors staging table
 

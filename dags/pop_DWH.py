@@ -96,9 +96,6 @@ def StageAndDWH():
         authors_df_normalized.replace(to_replace="NaN", value="Unknown", inplace=True)
         authors_df_normalized = authors_df_normalized.fillna(value="Unknown")
 
-        authors_df_normalized.to_csv(os.path.join(folder, 'authors_out.csv'), index = False)
-        df.to_csv(os.path.join(folder, 'main_out.csv'), index = False)
-
         # Insert data into authors staging table
 
         sql_statement = """INSERT INTO staging_authors

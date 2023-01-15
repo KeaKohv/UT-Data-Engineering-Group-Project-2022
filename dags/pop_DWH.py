@@ -178,7 +178,7 @@ def StageAndDWH():
 
                            INSERT INTO dim_venue (pub_venue, publisher)
                            SELECT DISTINCT pub_venue, publisher FROM staging_main
-                           ON CONFLICT DO NOTHING;
+                           ON CONFLICT (pub_venue, publisher) DO NOTHING;
 
                            UPDATE staging_main 
                            SET venue_key = (

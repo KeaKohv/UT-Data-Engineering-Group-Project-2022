@@ -59,9 +59,9 @@ def StageAndDWH():
         #df = pd.read_csv(os.path.join(folder, 'mock_main.csv'))
 
         df = pd.read_csv(os.path.join(folder, file_main))
-        df.replace(to_replace="'", value="\\'", inplace=True)
-        df.replace(to_replace="$", value="\\$", inplace=True)
-        df.replace(to_replace='"', value='\\"', inplace=True)
+        df.replace(to_replace="'", value="\\'", inplace=True, regex = True)
+        df.replace(to_replace="$", value="\\$", inplace=True, regex = True)
+        df.replace(to_replace='"', value='\\"', inplace=True, regex = True)
         df['published-year'] = [str(year).split('.',1)[0] for year in df['published-year']]
 
         # Insert data into main staging table
@@ -94,9 +94,9 @@ def StageAndDWH():
         #authors_df_normalized = pd.read_csv((os.path.join(folder, 'mock_authors.csv')))
 
         authors_df_normalized = pd.read_csv(os.path.join(folder, file_authors))
-        authors_df_normalized.replace(to_replace="'", value="\\'", inplace=True)
-        authors_df_normalized.replace(to_replace="[", value="", inplace=True)
-        authors_df_normalized.replace(to_replace="]", value="", inplace=True)
+        authors_df_normalized.replace(to_replace="'", value="\\'", inplace=True, regex = True)
+        authors_df_normalized.replace(to_replace="[", value="", inplace=True, regex = True)
+        authors_df_normalized.replace(to_replace="]", value="", inplace=True, regex = True)
 
         # Insert data into authors staging table
 

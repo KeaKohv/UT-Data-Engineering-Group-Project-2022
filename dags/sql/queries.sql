@@ -97,7 +97,7 @@ FROM (
 	JOIN paper_fact p ON v.venue_key=p.venue_key) x;
 
 --- ranking publication venues by the average number of citations per paper
-SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.pub_venue
+SELECT DENSE_RANK() OVER(ORDER BY x.average DESC) ranking, x.average, x.pub_venue
 FROM (
 	SELECT DISTINCT v.pub_venue, ROUND(AVG(p.citation_count) OVER(PARTITION BY v.pub_venue)) average
 	FROM dim_venue v

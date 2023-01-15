@@ -110,30 +110,40 @@ def process_crossref_work(authors=None, doi=None, title=None):
 from openalex import process_openalex_work
 def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     extra = []
+    successes = []
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
 
         aux = process_openalex_work(authors=authors, doi=t.doi, title=t.title)
 
         if len(aux) == 0:
-            aux = process_crossref_work(authors=authors, doi=t.doi, title=t.title)
+            try:
+                aux = process_crossref_work(authors=authors, doi=t.doi, title=t.title)
+            except requests.HTTPError:
+                successes.append(False)
+                continue
 
-        if len(aux) == 0:
+        if len(aux) == 0 or aux['title'] is None or len(aux.get('title', '')) == 0:
             print('Failed to find match for')
             print(t)
+            successes.append(False)
+            continue
         else:
             aux['author'] = list(filter(lambda x: x.get("family", False), aux['author']))
-        extra.append(aux)
 
-    succeeded = np.array(list(map(bool, extra)))
+        extra.append(aux)
+        successes.append(True)
+
+    succeeded = np.array(successes)
     failed    =~succeeded
     print('Failed:', sum(failed))
-    enriched = dataframe.drop(['doi', 'title'], axis=1)
+    enriched = dataframe.drop(['doi', 'title'], axis=1).loc[succeeded]
+    enriched.reset_index(inplace=True)
     enriched = pd.concat([enriched, pd.DataFrame.from_records(extra, coerce_float=False)], axis=1, ignore_index=False)
-    enriched = enriched.loc[succeeded]
     enriched = merge_authorlists(enriched)
     assign_genders(enriched['authors_merged'])
     enriched = enriched.drop(['authors_parsed', 'author'], axis=1)
+    enriched = enriched.replace('"', r'\"')
 
     return enriched, dataframe.loc[failed]
 

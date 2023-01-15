@@ -16,9 +16,12 @@ from conf import DEFAULT_ARGS, API_URL, DATA_FOLDER, ARXIV_FILE_NAME, MAIN_FILE_
 from enrich import enrich
 
 def clean_title(t):
+    if t is None:
+        return 'UNKNOWN'
     return t.replace('\\', '\\\\').replace('"', '\\"')
 
 def row_to_neo4j(r):
+    print(r)
     queries = []
     title = clean_title(r['title'])
     piece_properties = "{title: \"" + title + "\""
@@ -27,37 +30,39 @@ def row_to_neo4j(r):
 
     piece_properties += f", subject: \"{r['subject']}\""
     piece_properties += "}"
-    piece = f"""MERGE (:Piece {piece_properties})"""
+    piece = f"""MERGE (p:Piece {piece_properties})"""
     queries.append(piece)
 
-    venue = f"{{title: \"{r['container-title']}\", publisher: \"{r['publisher']}\", type: \"{r['type']}\"}}"
+    venue = f"{{title: \"{clean_title(r['container-title'])}\", publisher: \"{clean_title(r['publisher'])}\", type: \"{clean_title(r['type'])}\"}}"
 
-    q = f"MERGE (:Venue {venue})"
+    q = f"MERGE (v:Venue {venue})"
+    queries.append(q)
+    q = f"MERGE (v)-[:PUBLICATION]-(p)"
     queries.append(q)
 
-    q = f"MATCH (p:Piece {piece_properties}) MERGE (v: Venue {venue})-[:PUBLISHES]->(p)"
-    queries.append(q)
 
-
-    q = f"MATCH (p:Piece {piece_properties}) MERGE (a: Author "
-    for author in r['authors_merged']:
-        author_properties = f'{{ family: "{author["family"]}", given: "{author["given"]}" }}'
-        queries.append(q + f'{author_properties})-[:AUTHORS]->(p);')
+    for i, author in enumerate(r['authors_merged']):
+        queries.append(
+            f'MERGE (a{i}:Author {{family: \"{author["family"]}\", given: \"{author["given"]}\" }})'
+        )
+        queries.append(
+            f'MERGE (a{i})-[:AUTHORSHIP]-(p)'
+        )
 
         if author["affiliation"] is not None and len(author["affiliation"]):
             print(author["affiliation"])
-            name = author["affiliation"]
-            institution = f'{{name: \"{name}\" }}'
-            aff = f"MERGE (:Institution {institution} )"
-            queries.append(aff)
-            aff = f"MATCH (a:Author {author_properties}) MATCH (i:Institution {institution}) MATCH (p:Piece {piece_properties}) WHERE (a)-[:AUTHORS]->(p) MERGE (a)-[:AFFILIATES]->(i)"
-            queries.append(aff)
+            queries.append(
+                f'MERGE (i{i}:Institution {{name: \"{author["affiliation"]}\"}})'
+            )
+            queries.append(
+               f'MERGE (a{i})-[:AFFILIATION]-(i{i})'
+            )
 
     if r['reference'] is None:
         return queries
 
     # references
-    for ref in r['reference']:
+    for i, ref in enumerate(r['reference']):
         if ref['title'] is None:
             continue
         ref_title = clean_title(ref['title'])
@@ -65,8 +70,15 @@ def row_to_neo4j(r):
         if not np.isnan(r['published-year']):
             ref_properties += f""", year: {int(r['published-year'])}"""
         ref_properties += "}"
-        q = f"MATCH (p:Piece {piece_properties}) MERGE (p)-[:REFERENCES]->(r: Piece {ref_properties})"
-        queries.append(q)
+
+        queries.append(
+            f"MERGE (r{i}: Piece {ref_properties})"
+        )
+        queries.append(
+            f"MERGE (p)-[:REFERENCES]->(r{i})"
+        )
+
+    queries = ['\n'.join(queries)]
 
     return queries
 
@@ -78,7 +90,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_neo4j',
-    schedule_interval='*/4 * * * *',
+    schedule_interval='*/1 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],

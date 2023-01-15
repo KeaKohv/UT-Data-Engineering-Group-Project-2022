@@ -106,7 +106,7 @@ def assign_genders(authors: pd.Series)->pd.Series:
                 author['gender'] = 'unknown'
 
             author['full_name'] = author['given'] + " " + author['family']
-            
+
             print(f"Author name is {author['full_name']}, assigned gender is {author['gender']}")
 
 
@@ -115,12 +115,25 @@ def assign_genders(authors: pd.Series)->pd.Series:
 #     for authorlist in authors_merged:
 #         for author in authorlist:
 #             author['full_name'] = process_names([str(author['family']), str(author['given'])])
+
 #             author['gender'] = "Unknown"
 #             if str.isalnum(str(author['given'])) == True:
 #                  # If scholarly request is not needed, find gender
 #                 author['gender'] = find_gender(author['full_name'], str(author['given']), str(author['family']))
 
 
+
+# def mock_assign_genders(authors_merged: pd.Series)->pd.Series:
+#     for authorlist in authors_merged:
+#         for author in authorlist:
+#             gender_number = sum(author['given'].encode('utf8')) % 5
+#             if gender_number == 0:
+#                 gender = 'Unknown'
+#             elif gender_number & 1:
+#                 gender = 'Female'
+#             else:
+#                 gender =  'Male'
+#             author['gender'] = gender
 
 # def get_names_gender(authors_merged: pd.Series)->pd.Series:
 #     '''
@@ -153,8 +166,7 @@ def assign_genders(authors: pd.Series)->pd.Series:
 #                     author['full_name'] = name
 
 
-#             print(author)
-#             time.sleep(0.1)
+#            print(author)
 
 
 class ReferenceInfo:
@@ -198,8 +210,9 @@ def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     extra = []
     for t in dataframe.itertuples():
         authors = [a['family'] for a in t.authors_parsed]
-        # aux = process_crossref_work(authors=authors, doi=t.doi, title=t.title)
+
         aux = process_openalex_work(authors=authors, doi=t.doi, title=t.title)
+
         if len(aux) == 0:
             aux = process_crossref_work(authors=authors, doi=t.doi, title=t.title)
 
@@ -218,6 +231,10 @@ def enrich(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     enriched = enriched.loc[succeeded]
     enriched = merge_authorlists(enriched)
     assign_genders(enriched['authors_merged'])
+    # assign_genders(enriched['authors_merged'])
+    # get_names_gender(enriched['authors_merged'])
+    # mock_assign_genders(enriched['authors_merged'])
+    enriched = enriched.drop(['authors_parsed', 'author'], axis=1)
 
     return enriched, dataframe.loc[failed]
 
@@ -280,9 +297,6 @@ def merge_authorlists(dataframe : pd.DataFrame) -> pd.DataFrame:
 
         new = sorted(new, key=lambda x: x["family"])
         old = sorted(old, key=lambda x: x["family"])
-        #
-        # print('new authorlist:', new)
-        # print('old authorlist:', old)
 
         for n, o in zip(new, old):
             authors = merge_author_names(o, n)

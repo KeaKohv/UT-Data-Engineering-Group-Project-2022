@@ -90,7 +90,7 @@ def neo4j_query():
 
 @dag(
     dag_id='api_to_neo4j',
-    schedule_interval='*/1 * * * *',
+    schedule_interval='*/4 * * * *',
     start_date=datetime(2022,9,1,0,0,0),
     catchup=False,
     tags=['project'],
@@ -121,6 +121,18 @@ def ApiToDB():
     @task(task_id = 'prepare_for_staging')
     def prepare_for_staging(folder, input_file, output_file_main, output_file_authors, **kwargs):
         df = pd.read_json(os.path.join(folder, input_file))
+
+        failure = pd.DataFrame()
+        for index,row in df.iterrows():
+            if len(row['title']) > 1000: # If a record has a very long title, then remove it
+                failure.append(row)
+                df.drop(index, inplace=True)
+
+        with open(os.path.join(folder, 'failures.json'), 'a') as f:
+            if len(failure):
+                string = failure.to_json(None)
+                f.writelines(string)
+                f.write('\n')
 
         authors_df = df[['id','authors_merged']].copy()
         explded = authors_df.explode("authors_merged")

@@ -80,6 +80,19 @@ CALL gds.betweenness.stream('article-centrality')
 YIELD nodeId, score
 RETURN gds.util.asNode(nodeId).title AS title, score
 ORDER BY score DESC, title ASC
+//////////////////////////////////////////////////
 
-
-
+CALL gds.graph.drop('paper-similarity', false) YIELD graphName;
+CALL gds.graph.project('paper-similarity', 
+['Piece', 'Venue'],
+['AUTHORSHIP', 'PUBLICATION', 'REFERENCES']
+);
+CALL gds.nodeSimilarity.stream('paper-similarity')
+YIELD node1, node2, similarity as score
+WHERE gds.util.asNode(node1).title <> gds.util.asNode(node2).title
+RETURN gds.util.asNode(node1).title AS title1, 
+gds.util.asNode(node1).subject AS subject1, 
+gds.util.asNode(node2).title AS title2,
+gds.util.asNode(node2).subject AS subject2,score
+ORDER BY score DESC, title1 ASC
+//////////////////////////////////////////////////
